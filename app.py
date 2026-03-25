@@ -324,6 +324,7 @@ with col_right:
 
                 # 自動配車割り振り：出席者を順番に4名ずつグループ化
                 auto_car_map = {}
+                use_auto = True  # 手動設定が保存されていれば False になる
                 if haisha_flag2:
                     _idx = 0
                     for _, _p in players.iterrows():
@@ -336,6 +337,15 @@ with col_right:
                         if _st == "出席":
                             auto_car_map[_n] = (_idx // 4) + 1
                             _idx += 1
+                    # 出席者の配車番号が複数種類あれば手動設定済みとみなす
+                    if not attendance.empty:
+                        _ev_att = attendance[
+                            (attendance["イベントID"] == event_id) & (attendance["出欠"] == "出席")
+                        ]
+                        if not _ev_att.empty and "配車" in _ev_att.columns:
+                            _cars = _ev_att["配車"].astype(str).str.strip()
+                            if _cars.nunique() > 1:
+                                use_auto = False
 
                 for _, p in players.iterrows():
                     name = p["名前"]
@@ -358,8 +368,8 @@ with col_right:
                             horizontal=True, key=f"{event_id}_{name}",
                             label_visibility="collapsed"
                         )
-                        # 保存済みの手動値があればそれを優先、なければ自動割り振り
-                        if default_car.isdigit():
+                        # 手動設定済みなら保存値を使用、それ以外は自動割り振り
+                        if not use_auto and default_car.isdigit():
                             car_val = int(default_car)
                         else:
                             car_val = auto_car_map.get(name, 1)
