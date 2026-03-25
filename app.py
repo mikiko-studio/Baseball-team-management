@@ -144,6 +144,28 @@ st.markdown("""
 # =========================
 events = load_events()
 
+# 直近1週間の更新サマリー
+if not events.empty and "更新日時" in events.columns:
+    from datetime import datetime, timedelta
+    week_ago = pd.Timestamp.now() - pd.Timedelta(days=7)
+    events["_更新日時dt"] = pd.to_datetime(events["更新日時"], errors="coerce")
+    recent = events[events["_更新日時dt"] >= week_ago].sort_values("_更新日時dt", ascending=False)
+    if not recent.empty:
+        _att = load_attendance()
+        lines = []
+        for _, e in recent.iterrows():
+            icon = "🔴" if e["種類"] == "試合" else "🔵" if e["種類"] == "練習" else "⚪"
+            wd = WEEKDAYS[e["日付"].weekday()]
+            att_e = _att[_att["イベントID"] == e["イベントID"]] if not _att.empty else pd.DataFrame()
+            n_attend = len(att_e[att_e["出欠"] == "出席"]) if not att_e.empty else 0
+            n_absent = len(att_e[att_e["出欠"] == "欠席"]) if not att_e.empty else 0
+            updated = e["_更新日時dt"].strftime("%m/%d %H:%M") if pd.notna(e["_更新日時dt"]) else ""
+            lines.append(f"{icon} **{e['日付'].strftime('%m/%d')}({wd}) {e['種類']}** {e['場所']}　出席{n_attend}名 / 欠席{n_absent}名　*更新:{updated}*")
+        st.markdown("**📢 直近1週間の更新**")
+        for l in lines:
+            st.markdown(l)
+        st.markdown("")
+
 # URLパラメータからイベントID取得（LINE直リンク対応）
 query_params = st.query_params
 if "event_id" in query_params:
@@ -306,7 +328,8 @@ with st.expander("➕ イベント追加"):
             load_events.clear()
             events_df = load_events()
             new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
-            ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, haisha, title])
+            now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+            ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, haisha, title, now_str])
             load_events.clear()
             st.success("登録OK")
             st.rerun()
@@ -353,7 +376,8 @@ with st.expander("✏️ イベント編集・削除"):
                     all_rows = ws.get_all_records()
                     for i, row in enumerate(all_rows, start=2):
                         if int(row["イベントID"]) == edit_id:
-                            ws.update(f"A{i}:I{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, ehaisha, etitle]])
+                            now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+                            ws.update(f"A{i}:J{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, ehaisha, etitle, now_str]])
                             break
                     load_events.clear()
                     st.success("更新しました")
