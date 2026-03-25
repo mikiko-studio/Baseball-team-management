@@ -118,55 +118,113 @@ col_left, col_right = st.columns([1,2])
 with col_left:
     
 
+    WEEKDAYS = ["月","火","水","木","金","土","日"]
+
     st.subheader("📋 イベント一覧（クリックで選択）")
 
     if not events.empty:
         events_sorted = events.sort_values("日付")
 
         for _, e in events_sorted.iterrows():
-            # 種類ごとに色分け
             if e['種類'] == '試合':
                 icon = "🔴"
             elif e['種類'] == '練習':
                 icon = "🔵"
             else:
                 icon = "⚪"
-
-            label = f"{icon} {e['日付'].strftime('%m/%d')} {e['タイトル']} ({e['開始時間']}〜{e['終了時間']}) @ {e['場所']}"
+            wd = WEEKDAYS[e['日付'].weekday()]
+            label = f"{icon} {e['日付'].strftime('%m/%d')}({wd}) {e['タイトル']} {e['開始時間']}〜{e['終了時間']} {e['場所']}"
 
             if st.button(label, key=f"list_{e['イベントID']}"):
                 st.session_state["selected_event_id"] = int(e["イベントID"])
+                st.session_state.pop("edit_event_id", None)
 
     st.divider()
 
-    st.subheader("➕ イベント追加")
-    with st.form("event_form"):
-        d = st.date_input("日付", date.today())
-        start = st.time_input("開始", value=time(9,0))
-        end = st.time_input("終了", value=time(12,0))
-        t = st.selectbox("種類", ["練習", "試合", "自主練習"])
-        title = st.text_input("タイトル")
-        loc = st.text_input("場所")
+    with st.expander("➕ イベント追加"):
+        with st.form("event_form"):
+            c1, c2 = st.columns(2)
+            d = c1.date_input("日付", date.today())
+            t = c2.selectbox("種類", ["練習", "試合", "自主練習"])
+            c3, c4 = st.columns(2)
+            start = c3.time_input("開始", value=time(9,0))
+            end = c4.time_input("終了", value=time(12,0))
+            title = st.text_input("タイトル")
+            loc = st.text_input("場所")
 
-        if st.form_submit_button("登録"):
-            ws = get_ws(EVENT_SHEET)
-            events_df = load_events()
-            new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
+            if st.form_submit_button("登録"):
+                ws = get_ws(EVENT_SHEET)
+                load_events.clear()
+                events_df = load_events()
+                new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
+                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, title, loc])
+                app_url = st.secrets.get("APP_URL", "")
+                link = f"{app_url}?event_id={new_id}" if app_url else ""
+                msg = f"新イベント\n{d} {title}\n{start.strftime('%H:%M')}〜{end.strftime('%H:%M')}\n{loc}\n{link}"
+                send_line_notify(msg)
+                load_events.clear()
+                st.success("登録OK")
+                st.rerun()
 
-            ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, title, loc])
+    # =========================
+    # イベント編集・削除
+    # =========================
+    with st.expander("✏️ イベント編集・削除"):
+        if events.empty:
+            st.info("イベントがありません")
+        else:
+            events_sorted2 = events.sort_values("日付")
+            WEEKDAYS2 = ["月","火","水","木","金","土","日"]
+            event_options = {
+                int(e["イベントID"]): f"{e['日付'].strftime('%m/%d')}({WEEKDAYS2[e['日付'].weekday()]}) {e['タイトル']}"
+                for _, e in events_sorted2.iterrows()
+            }
+            edit_id = st.selectbox("イベントを選択", options=list(event_options.keys()), format_func=lambda x: event_options[x], key="edit_select")
 
-            app_url = st.secrets.get("APP_URL", "")
-            link = f"{app_url}?event_id={new_id}" if app_url else ""
+            if edit_id:
+                er = events[events["イベントID"] == edit_id].iloc[0]
+                with st.form("edit_form"):
+                    ec1, ec2 = st.columns(2)
+                    ed = ec1.date_input("日付", value=er["日付"].date())
+                    et = ec2.selectbox("種類", ["練習", "試合", "自主練習"], index=["練習","試合","自主練習"].index(er["種類"]))
+                    ec3, ec4 = st.columns(2)
+                    try:
+                        es = time(*[int(x) for x in er["開始時間"].split(":")])
+                        ee = time(*[int(x) for x in er["終了時間"].split(":")])
+                    except:
+                        es, ee = time(9,0), time(12,0)
+                    estart = ec3.time_input("開始", value=es)
+                    eend = ec4.time_input("終了", value=ee)
+                    etitle = st.text_input("タイトル", value=er["タイトル"])
+                    eloc = st.text_input("場所", value=er["場所"])
 
-            msg = f"""新イベント
-{d} {title}
-{start.strftime('%H:%M')}〜{end.strftime('%H:%M')}
-{loc}
-{link}"""
-            send_line_notify(msg)
+                    col_save, col_del = st.columns(2)
+                    save_btn = col_save.form_submit_button("💾 保存")
+                    del_btn = col_del.form_submit_button("🗑️ 削除", type="secondary")
 
-            st.success("登録＆通知OK")
-            st.rerun()
+                    if save_btn:
+                        ws = get_ws(EVENT_SHEET)
+                        all_rows = ws.get_all_records()
+                        for i, row in enumerate(all_rows, start=2):
+                            if int(row["イベントID"]) == edit_id:
+                                ws.update(f"A{i}:G{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, etitle, eloc]])
+                                break
+                        load_events.clear()
+                        st.success("更新しました")
+                        st.rerun()
+
+                    if del_btn:
+                        ws = get_ws(EVENT_SHEET)
+                        all_rows = ws.get_all_records()
+                        for i, row in enumerate(all_rows, start=2):
+                            if int(row["イベントID"]) == edit_id:
+                                ws.delete_rows(i)
+                                break
+                        load_events.clear()
+                        if st.session_state.get("selected_event_id") == edit_id:
+                            st.session_state.pop("selected_event_id", None)
+                        st.success("削除しました")
+                        st.rerun()
 
 # =========================
 # 右：出欠
