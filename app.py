@@ -11,7 +11,7 @@ SPREADSHEET_ID = "17s98-7sAmcom90WjoHcwrPuz8IgKGFSI1c8quT4iteg"
 PLAYER_SHEET = "選手名簿"
 EVENT_SHEET = "イベント"
 ATTEND_SHEET = "出席管理"
-LINE_NOTIFY_TOKEN = os.getenv("LINE_NOTIFY_TOKEN")
+WEEKDAYS = ["月","火","水","木","金","土","日"]
 
 GRADES = ["1年","2年","3年","4年","5年","6年"]
 
@@ -83,14 +83,33 @@ def save_attendance_bulk(event_id, status_dict):
     ws.append_rows(rows)
     load_attendance.clear()  # 保存後もキャッシュをリセット
 
-# LINE通知
-def send_line_notify(message):
-    if not LINE_NOTIFY_TOKEN:
-        return
-    url = "https://notify-api.line.me/api/notify"
-    headers = {"Authorization": f"Bearer {LINE_NOTIFY_TOKEN}"}
-    data = {"message": message}
-    requests.post(url, headers=headers, data=data)
+# LINE Messaging API 通知
+def send_line_message(message):
+    token = st.secrets.get("LINE_CHANNEL_ACCESS_TOKEN", "")
+    if not token:
+        return False, "LINE_CHANNEL_ACCESS_TOKENが未設定"
+    group_id = st.secrets.get("LINE_GROUP_ID", "")
+    if group_id:
+        url = "https://api.line.me/v2/bot/message/push"
+        body = {"to": group_id, "messages": [{"type": "text", "text": message}]}
+    else:
+        url = "https://api.line.me/v2/bot/message/broadcast"
+        body = {"messages": [{"type": "text", "text": message}]}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    r = requests.post(url, headers=headers, json=body)
+    return r.status_code == 200, r.text
+
+# Googleカレンダー追加URL生成
+def google_calendar_url(title, dt, start_str, end_str, location):
+    from urllib.parse import quote
+    try:
+        sh, sm = [int(x) for x in start_str.split(":")]
+        eh, em = [int(x) for x in end_str.split(":")]
+    except:
+        return ""
+    start = f"{dt.strftime('%Y%m%d')}T{sh:02d}{sm:02d}00"
+    end   = f"{dt.strftime('%Y%m%d')}T{eh:02d}{em:02d}00"
+    return f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={quote(title)}&dates={start}/{end}&location={quote(location)}"
 
 st.set_page_config(layout="wide")
 st.title("⚾ 少年野球チーム管理アプリ（カレンダー＋出欠一体型）")
@@ -117,8 +136,6 @@ col_left, col_right = st.columns([1,2])
 # =========================
 with col_left:
     
-
-    WEEKDAYS = ["月","火","水","木","金","土","日"]
 
     st.subheader("📋 イベント一覧（クリックで選択）")
 
@@ -160,8 +177,9 @@ with col_left:
                 ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, title, loc])
                 app_url = st.secrets.get("APP_URL", "")
                 link = f"{app_url}?event_id={new_id}" if app_url else ""
-                msg = f"新イベント\n{d} {title}\n{start.strftime('%H:%M')}〜{end.strftime('%H:%M')}\n{loc}\n{link}"
-                send_line_notify(msg)
+                wd = WEEKDAYS[pd.Timestamp(d).weekday()]
+                msg = f"【新イベント】\n{d}({wd}) {title}\n{start.strftime('%H:%M')}〜{end.strftime('%H:%M')}\n📍{loc}\n{link}"
+                send_line_message(msg)
                 load_events.clear()
                 st.success("登録OK")
                 st.rerun()
@@ -174,9 +192,8 @@ with col_left:
             st.info("イベントがありません")
         else:
             events_sorted2 = events.sort_values("日付")
-            WEEKDAYS2 = ["月","火","水","木","金","土","日"]
             event_options = {
-                int(e["イベントID"]): f"{e['日付'].strftime('%m/%d')}({WEEKDAYS2[e['日付'].weekday()]}) {e['タイトル']}"
+                int(e["イベントID"]): f"{e['日付'].strftime('%m/%d')}({WEEKDAYS[e['日付'].weekday()]}) {e['タイトル']}"
                 for _, e in events_sorted2.iterrows()
             }
             edit_id = st.selectbox("イベントを選択", options=list(event_options.keys()), format_func=lambda x: event_options[x], key="edit_select")
@@ -242,8 +259,23 @@ with col_right:
         else:
             event_row = events[events["イベントID"] == event_id].iloc[0]
 
-            st.write(f"📅 {event_row['日付'].strftime('%m/%d')} {event_row['タイトル']}")
+            wd = WEEKDAYS[event_row['日付'].weekday()]
+            st.write(f"📅 {event_row['日付'].strftime('%m/%d')}({wd}) {event_row['タイトル']}")
             st.write(f"📍 {event_row['場所']} / {event_row['開始時間']}〜{event_row['終了時間']}")
+
+            btn_col1, btn_col2 = st.columns(2)
+            gcal = google_calendar_url(event_row['タイトル'], event_row['日付'], event_row['開始時間'], event_row['終了時間'], event_row['場所'])
+            if gcal:
+                btn_col1.link_button("📆 Googleカレンダーに追加", gcal)
+            if btn_col2.button("📣 LINEに出欠状況を通知", key="line_notify"):
+                if not attendance.empty:
+                    att = attendance[attendance["イベントID"] == event_id]
+                    出席 = ", ".join(att[att["出欠"]=="出席"]["名前"].tolist()) or "なし"
+                    欠席 = ", ".join(att[att["出欠"]=="欠席"]["名前"].tolist()) or "なし"
+                    未定 = ", ".join(att[att["出欠"]=="未定"]["名前"].tolist()) or "なし"
+                    msg = f"【出欠状況】{event_row['日付'].strftime('%m/%d')}({wd}) {event_row['タイトル']}\n✅出席: {出席}\n❌欠席: {欠席}\n❓未定: {未定}"
+                    ok, detail = send_line_message(msg)
+                    st.success("LINE送信OK") if ok else st.error(f"送信失敗: {detail}")
 
             if not attendance.empty:
                 attendees = attendance[(attendance["イベントID"] == event_id) & (attendance["出欠"] == "出席")]
@@ -282,6 +314,20 @@ with col_right:
                     save_attendance_bulk(event_id, status_dict)
                     st.success("保存完了")
                     st.rerun()
+
+# =========================
+# 🔧 LINE設定
+# =========================
+st.divider()
+with st.expander("🔧 LINE設定・テスト"):
+    token_set = bool(st.secrets.get("LINE_CHANNEL_ACCESS_TOKEN", ""))
+    group_set = bool(st.secrets.get("LINE_GROUP_ID", ""))
+    st.write(f"Channel Access Token: {'✅ 設定済み' if token_set else '❌ 未設定'}")
+    st.write(f"LINE_GROUP_ID: {'✅ 設定済み（グループ送信）' if group_set else '⚠️ 未設定（ブロードキャスト送信）'}")
+    st.caption("Streamlit CloudのSecretsに `LINE_CHANNEL_ACCESS_TOKEN` と `LINE_GROUP_ID` を設定してください。")
+    if st.button("📨 テストメッセージを送信"):
+        ok, detail = send_line_message("【テスト】野球チーム管理アプリからの送信テストです。")
+        st.success("送信OK") if ok else st.error(f"送信失敗: {detail}")
 
 # =========================
 # 👤 選手管理
