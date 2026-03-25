@@ -95,9 +95,19 @@ def load_attendance():
 
     return df
 
+LOG_COLS = ["日時", "種別", "イベント情報", "変更項目", "変更前", "変更後"]
+
 def load_change_log():
-    df = pd.DataFrame(get_spreadsheet().worksheet(LOG_SHEET).get_all_records())
-    if not df.empty and "日時" in df.columns:
+    vals = get_spreadsheet().worksheet(LOG_SHEET).get_all_values()
+    if not vals:
+        return pd.DataFrame(columns=LOG_COLS + ["日時dt"])
+    # ヘッダー行があるか確認
+    if vals[0][0] == "日時":
+        rows = vals[1:]
+    else:
+        rows = vals
+    df = pd.DataFrame(rows, columns=LOG_COLS[:len(vals[0])] if rows else LOG_COLS)
+    if "日時" in df.columns:
         df["日時dt"] = pd.to_datetime(df["日時"], errors="coerce")
     return df
 
@@ -108,8 +118,9 @@ def write_change_log(entries):
     try:
         ws = get_spreadsheet().worksheet(LOG_SHEET)
         vals = ws.get_all_values()
-        if not vals:
-            ws.append_row(["日時", "種別", "イベント情報", "変更項目", "変更前", "変更後"])
+        # ヘッダーがなければ1行目に挿入
+        if not vals or vals[0][0] != "日時":
+            ws.insert_row(LOG_COLS, 1)
         ws.append_rows(entries)
     except Exception as e:
         st.warning(f"変更ログ書き込みエラー: {e}")
@@ -143,7 +154,7 @@ def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info="")
     load_attendance.clear()
 
     # 変更ログ書き込み
-    now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+    now_str = (pd.Timestamp.now() + pd.Timedelta(hours=9)).strftime("%Y-%m-%d %H:%M")
     log_entries = []
     for name, new_st in status_dict.items():
         old_st = old_status.get(name, "未定")
@@ -182,12 +193,8 @@ events = load_events()
 # 直近1週間の変更ログサマリー
 try:
     _log = load_change_log()
-    _week_ago = pd.Timestamp.now() - pd.Timedelta(days=7)
-    with st.expander("🔍 ログデバッグ", expanded=False):
-        st.write(f"now={pd.Timestamp.now()}, week_ago={_week_ago}")
-        st.write(f"log rows={len(_log)}")
-        if not _log.empty:
-            st.dataframe(_log)
+    _now_jst = pd.Timestamp.now() + pd.Timedelta(hours=9)
+    _week_ago = _now_jst - pd.Timedelta(days=7)
     if not _log.empty and "日時dt" in _log.columns:
         _recent = _log[_log["日時dt"] >= _week_ago].sort_values("日時dt", ascending=False)
         if not _recent.empty:
@@ -371,7 +378,7 @@ with st.expander("➕ イベント追加"):
             load_events.clear()
             events_df = load_events()
             new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
-            now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+            now_str = (pd.Timestamp.now() + pd.Timedelta(hours=9)).strftime("%Y-%m-%d %H:%M")
             ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, haisha, title, now_str])
             _wd = WEEKDAYS[pd.Timestamp(d).weekday()]
             _einfo = f"{d.strftime('%m/%d')}({_wd}) {t}"
@@ -422,7 +429,7 @@ with st.expander("✏️ イベント編集・削除"):
                     all_rows = ws.get_all_records()
                     for i, row in enumerate(all_rows, start=2):
                         if int(row["イベントID"]) == edit_id:
-                            now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+                            now_str = (pd.Timestamp.now() + pd.Timedelta(hours=9)).strftime("%Y-%m-%d %H:%M")
                             ws.update(f"A{i}:J{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, ehaisha, etitle, now_str]])
                             break
                     # 変更ログ
@@ -464,7 +471,7 @@ with st.expander("✏️ イベント編集・削除"):
                         if int(row["イベントID"]) == edit_id:
                             ws.delete_rows(i)
                             break
-                    now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+                    now_str = (pd.Timestamp.now() + pd.Timedelta(hours=9)).strftime("%Y-%m-%d %H:%M")
                     _wd = WEEKDAYS[er["日付"].weekday()]
                     _einfo = f"{er['日付'].strftime('%m/%d')}({_wd}) {er['種類']}"
                     write_change_log([[now_str, "イベント", _einfo, "削除", _einfo, ""]])
