@@ -1,18 +1,37 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, time
-from utils import (get_ws, get_spreadsheet, load_events, write_change_log,
+from utils import (get_ws, load_events, write_change_log,
                    now_jst, WEEKDAYS, EVENT_SHEET)
 
+KINDS = ["練習", "試合", "自主練習"]
+
+def _bool(v):
+    if isinstance(v, bool): return v
+    if isinstance(v, str):  return v.upper() in ("TRUE", "あり", "1")
+    return bool(v)
+
+def _s(v):
+    if v is None: return ""
+    try:
+        if pd.isna(v): return ""
+    except: pass
+    return str(v).strip()
+
+# =========================
+# イベント追加
+# =========================
 st.markdown("### ➕ イベント追加")
 
 events = load_events()
 today  = pd.Timestamp(date.today())
 
+# 種類をフォームの外で選択（条件分岐のため）
+add_kind = st.selectbox("種類", KINDS, key="add_kind_sel")
+
 with st.form("event_form"):
     c1, c2 = st.columns(2)
-    d = c1.date_input("日付", date.today())
-    t = c2.selectbox("種類", ["練習", "試合", "自主練習"])
+    d     = c1.date_input("日付", date.today())
     c3, c4 = st.columns(2)
     start = c3.time_input("開始", value=time(9, 0))
     end   = c4.time_input("終了", value=time(12, 0))
@@ -21,14 +40,24 @@ with st.form("event_form"):
     memo  = st.text_input("メモ")
     haisha = st.checkbox("配車あり", value=False)
 
+    if add_kind == "練習":
+        st.markdown("**役割分担**")
+        rc1, rc2, rc3 = st.columns(3)
+        scorer    = rc1.checkbox("スコアラー", key="add_scorer")
+        referee   = rc2.checkbox("審判",       key="add_referee")
+        h_referee = rc3.checkbox("主審",       key="add_h_referee")
+    else:
+        scorer = referee = h_referee = False
+
     if st.form_submit_button("登録"):
+        t  = st.session_state.get("add_kind_sel", "練習")
         ws = get_ws(EVENT_SHEET)
         load_events.clear()
         events_df = load_events()
         new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
         ns = now_jst()
         ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"),
-                       t, loc, tanto, haisha, memo, ns])
+                       t, loc, tanto, haisha, memo, ns, scorer, referee, h_referee])
         _wd    = WEEKDAYS[pd.Timestamp(d).weekday()]
         _einfo = f"{d.strftime('%m/%d')}({_wd}) {t}"
         write_change_log([[ns, "イベント", _einfo, "新規追加", "",
@@ -37,6 +66,9 @@ with st.form("event_form"):
         st.success("登録OK")
         st.rerun()
 
+# =========================
+# イベント編集・削除
+# =========================
 st.divider()
 st.markdown("### ✏️ イベント編集・削除")
 
@@ -57,11 +89,16 @@ else:
 
         if edit_id:
             er = events[events["イベントID"] == edit_id].iloc[0]
+
+            # 種類をフォームの外で選択
+            cur_kind  = er["種類"] if er["種類"] in KINDS else "練習"
+            edit_kind = st.selectbox("種類", KINDS,
+                                     index=KINDS.index(cur_kind),
+                                     key="edit_kind_sel")
+
             with st.form("edit_form"):
                 ec1, ec2 = st.columns(2)
                 ed = ec1.date_input("日付", value=er["日付"].date())
-                et = ec2.selectbox("種類", ["練習","試合","自主練習"],
-                                   index=["練習","試合","自主練習"].index(er["種類"]))
                 ec3, ec4 = st.columns(2)
                 try:
                     es = time(*[int(x) for x in er["開始時間"].split(":")])
@@ -70,47 +107,56 @@ else:
                     es, ee = time(9, 0), time(12, 0)
                 estart = ec3.time_input("開始", value=es)
                 eend   = ec4.time_input("終了", value=ee)
-                eloc   = st.text_input("場所", value=er["場所"])
-                etanto = st.text_input("担当班", value=str(er.get("担当班", "") or ""))
-                ememo  = st.text_input("メモ", value=str(er.get("メモ", "") or ""))
-                haisha_val = er.get("配車", False)
-                if isinstance(haisha_val, str):
-                    haisha_val = haisha_val.upper() in ("TRUE", "あり")
-                ehaisha = st.checkbox("配車あり", value=bool(haisha_val))
+                eloc   = st.text_input("場所",   value=_s(er["場所"]))
+                etanto = st.text_input("担当班", value=_s(er.get("担当班", "")))
+                ememo  = st.text_input("メモ",   value=_s(er.get("メモ", "")))
+                haisha_val = _bool(er.get("配車", False))
+                ehaisha    = st.checkbox("配車あり", value=haisha_val)
+
+                et = st.session_state.get("edit_kind_sel", cur_kind)
+                if et == "練習":
+                    st.markdown("**役割分担**")
+                    rc1, rc2, rc3 = st.columns(3)
+                    scorer_val    = _bool(er.get("スコアラー", False))
+                    referee_val   = _bool(er.get("審判",       False))
+                    h_ref_val     = _bool(er.get("主審",       False))
+                    escorer    = rc1.checkbox("スコアラー", value=scorer_val,  key="edit_scorer")
+                    ereferee   = rc2.checkbox("審判",       value=referee_val, key="edit_referee")
+                    eh_referee = rc3.checkbox("主審",       value=h_ref_val,   key="edit_h_ref")
+                else:
+                    escorer = ereferee = eh_referee = False
 
                 col_save, col_del = st.columns(2)
                 save_btn = col_save.form_submit_button("💾 保存")
                 del_btn  = col_del.form_submit_button("🗑️ 削除", type="secondary")
 
                 if save_btn:
-                    ws = get_ws(EVENT_SHEET)
+                    et  = st.session_state.get("edit_kind_sel", cur_kind)
+                    ws  = get_ws(EVENT_SHEET)
+                    ns  = now_jst()
                     all_rows = ws.get_all_records()
-                    ns = now_jst()
                     for i, row in enumerate(all_rows, start=2):
                         if int(row["イベントID"]) == edit_id:
-                            ws.update(f"A{i}:J{i}", [[edit_id, str(ed),
+                            ws.update(f"A{i}:M{i}", [[edit_id, str(ed),
                                 estart.strftime("%H:%M"), eend.strftime("%H:%M"),
-                                et, eloc, etanto, ehaisha, ememo, ns]])
+                                et, eloc, etanto, ehaisha, ememo, ns,
+                                escorer, ereferee, eh_referee]])
                             break
-
-                    def _s(v):
-                        if v is None: return ""
-                        try:
-                            if pd.isna(v): return ""
-                        except: pass
-                        return str(v).strip()
 
                     _wd    = WEEKDAYS[er["日付"].weekday()]
                     _einfo = f"{er['日付'].strftime('%m/%d')}({_wd}) {er['種類']}"
                     field_map = [
-                        ("日付",    str(er["日付"].date()),    str(ed)),
-                        ("種類",    _s(er["種類"]),             et),
-                        ("開始時間", _s(er["開始時間"]),         estart.strftime("%H:%M")),
-                        ("終了時間", _s(er["終了時間"]),         eend.strftime("%H:%M")),
-                        ("場所",    _s(er["場所"]),             eloc),
-                        ("担当班",  _s(er.get("担当班", "")),   etanto),
-                        ("配車",    str(bool(haisha_val)),     str(ehaisha)),
-                        ("メモ",    _s(er.get("メモ", "")),     ememo),
+                        ("日付",      str(er["日付"].date()),          str(ed)),
+                        ("種類",      _s(er["種類"]),                   et),
+                        ("開始時間",  _s(er["開始時間"]),               estart.strftime("%H:%M")),
+                        ("終了時間",  _s(er["終了時間"]),               eend.strftime("%H:%M")),
+                        ("場所",      _s(er["場所"]),                   eloc),
+                        ("担当班",    _s(er.get("担当班", "")),         etanto),
+                        ("配車",      str(haisha_val),                  str(ehaisha)),
+                        ("メモ",      _s(er.get("メモ", "")),           ememo),
+                        ("スコアラー", str(_bool(er.get("スコアラー", False))), str(escorer)),
+                        ("審判",      str(_bool(er.get("審判", False))),       str(ereferee)),
+                        ("主審",      str(_bool(er.get("主審", False))),       str(eh_referee)),
                     ]
                     log_entries = [
                         [ns, "イベント", _einfo, f, o, n]
