@@ -22,15 +22,12 @@ SCOPES = [
 
 @st.cache_resource
 def get_spreadsheet():
+    import json
     if "gcp_service_account" in st.secrets:
-        info = dict(st.secrets["gcp_service_account"])
-        info["private_key"] = info["private_key"].replace("\\n", "\n")
-        creds = Credentials.from_service_account_info(info, scopes=SCOPES)
+        info = json.loads(json.dumps(dict(st.secrets["gcp_service_account"])))
+        client = gspread.service_account_from_dict(info)
     else:
-        creds = Credentials.from_service_account_file(
-            "service_account.json", scopes=SCOPES
-        )
-    client = gspread.authorize(creds)
+        client = gspread.service_account(filename="service_account.json")
     return client.open_by_key(SPREADSHEET_ID)
 
 @st.cache_resource
