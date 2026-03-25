@@ -147,7 +147,8 @@ with col_left:
     st.markdown("#### 📋 イベント一覧（クリックで選択）")
 
     if not events.empty:
-        events_sorted = events.sort_values("日付")
+        today = pd.Timestamp(date.today())
+        events_sorted = events[events["日付"] >= today].sort_values("日付")
 
         for _, e in events_sorted.iterrows():
             if e['種類'] == '試合':
