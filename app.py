@@ -199,13 +199,16 @@ try:
         _recent = _log[_log["日時dt"] >= _week_ago].sort_values("日時dt", ascending=False)
         if not _recent.empty:
             st.markdown("**📢 直近1週間の変更**")
-            for _, r in _recent.iterrows():
+            # イベント変更はそのまま表示
+            for _, r in _recent[_recent["種別"] == "イベント"].iterrows():
                 _date = r["日時dt"].strftime("%m/%d %H:%M") if pd.notna(r["日時dt"]) else ""
-                if r["種別"] == "イベント":
-                    st.caption(f"📅 {_date}　{r['イベント情報']}　{r['変更項目']}: {r['変更前']} → {r['変更後']}")
-                else:
-                    _icon = "✅" if r["変更後"] == "出席" else "❌" if r["変更後"] == "欠席" else "❓"
-                    st.caption(f"{_icon} {_date}　{r['イベント情報']}　{r['変更項目']}: {r['変更前']} → {r['変更後']}")
+                st.caption(f"📅 {_date}　{r['イベント情報']}　{r['変更項目']}: {r['変更前']} → {r['変更後']}")
+            # 出欠変更はイベント単位でまとめて表示
+            _attend = _recent[_recent["種別"] == "出欠"]
+            if not _attend.empty:
+                for _einfo, grp in _attend.groupby("イベント情報", sort=False):
+                    _date = grp["日時dt"].max().strftime("%m/%d %H:%M")
+                    st.caption(f"✅ {_date}　{_einfo}　出欠更新（{len(grp)}件）")
             st.markdown("")
         else:
             st.caption("📢 直近1週間の変更はありません")
