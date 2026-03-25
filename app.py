@@ -4,6 +4,37 @@ from google.oauth2.service_account import Credentials
 import pandas as pd
 from datetime import date, time
 import os
+import hashlib
+
+# =========================
+# パスワード認証
+# =========================
+def check_password():
+    correct_hash = hashlib.sha256(
+        st.secrets.get("APP_PASSWORD", "").encode()
+    ).hexdigest()
+
+    if st.session_state.get("authenticated"):
+        return True
+
+    st.markdown("""
+    <div style="border:0.5px solid currentColor; border-radius:8px; padding:6px 16px; display:inline-block;">
+    <h3 style="margin:0;">⚾ 少年野球チーム管理アプリ</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("")
+
+    pw = st.text_input("パスワードを入力してください", type="password")
+    if st.button("ログイン"):
+        if hashlib.sha256(pw.encode()).hexdigest() == correct_hash:
+            st.session_state["authenticated"] = True
+            st.rerun()
+        else:
+            st.error("パスワードが違います")
+    return False
+
+if not check_password():
+    st.stop()
 
 # --- 定数 ---
 SPREADSHEET_ID = "17s98-7sAmcom90WjoHcwrPuz8IgKGFSI1c8quT4iteg"
