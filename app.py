@@ -67,16 +67,21 @@ def load_attendance():
 # 上書き保存
 def save_attendance_bulk(event_id, status_dict):
     ws = get_ws(ATTEND_SHEET)
+    load_attendance.clear()  # キャッシュを破棄して最新データを取得
     df = load_attendance()
 
     if not df.empty:
+        # 重複排除してから対象イベントを除外
+        df = df.drop_duplicates(subset=["イベントID", "名前"], keep="last")
         df = df[df["イベントID"] != event_id]
         ws.clear()
         ws.append_row(["イベントID", "名前", "出欠"])
-        ws.append_rows(df.values.tolist())
+        if not df.empty:
+            ws.append_rows(df.values.tolist())
 
     rows = [[int(event_id), name, status] for name, status in status_dict.items()]
     ws.append_rows(rows)
+    load_attendance.clear()  # 保存後もキャッシュをリセット
 
 # LINE通知
 def send_line_notify(message):
