@@ -164,6 +164,7 @@ with col_left:
             if st.button(label, key=f"list_{e['イベントID']}", type="primary" if is_selected else "secondary"):
                 st.session_state["selected_event_id"] = int(e["イベントID"])
                 st.session_state.pop("edit_event_id", None)
+                st.rerun()
 
 # =========================
 # 右：出欠
