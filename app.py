@@ -164,100 +164,6 @@ with col_left:
                 st.session_state["selected_event_id"] = int(e["イベントID"])
                 st.session_state.pop("edit_event_id", None)
 
-    st.divider()
-
-    with st.expander("➕ イベント追加"):
-        with st.form("event_form"):
-            c1, c2 = st.columns(2)
-            d = c1.date_input("日付", date.today())
-            t = c2.selectbox("種類", ["練習", "試合", "自主練習"])
-            c3, c4 = st.columns(2)
-            start = c3.time_input("開始", value=time(9,0))
-            end = c4.time_input("終了", value=time(12,0))
-            loc = st.text_input("場所")
-            tanto = st.text_input("担当班")
-            title = st.text_input("メモ")
-            haisha = st.checkbox("配車あり", value=False)
-
-            if st.form_submit_button("登録"):
-                ws = get_ws(EVENT_SHEET)
-                load_events.clear()
-                events_df = load_events()
-                new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
-                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, haisha, title])
-                app_url = st.secrets.get("APP_URL", "")
-                link = f"{app_url}?event_id={new_id}" if app_url else ""
-                wd = WEEKDAYS[pd.Timestamp(d).weekday()]
-                msg = f"【新イベント】\n{d}({wd}) {title}\n{start.strftime('%H:%M')}〜{end.strftime('%H:%M')}\n📍{loc}\n{link}"
-                send_line_message(msg)
-                load_events.clear()
-                st.success("登録OK")
-                st.rerun()
-
-    # =========================
-    # イベント編集・削除
-    # =========================
-    with st.expander("✏️ イベント編集・削除"):
-        if events.empty:
-            st.info("イベントがありません")
-        else:
-            events_sorted2 = events.sort_values("日付")
-            event_options = {
-                int(e["イベントID"]): f"{e['日付'].strftime('%m/%d')}({WEEKDAYS[e['日付'].weekday()]}) {e['メモ']}"
-                for _, e in events_sorted2.iterrows()
-            }
-            edit_id = st.selectbox("イベントを選択", options=list(event_options.keys()), format_func=lambda x: event_options[x], key="edit_select")
-
-            if edit_id:
-                er = events[events["イベントID"] == edit_id].iloc[0]
-                with st.form("edit_form"):
-                    ec1, ec2 = st.columns(2)
-                    ed = ec1.date_input("日付", value=er["日付"].date())
-                    et = ec2.selectbox("種類", ["練習", "試合", "自主練習"], index=["練習","試合","自主練習"].index(er["種類"]))
-                    ec3, ec4 = st.columns(2)
-                    try:
-                        es = time(*[int(x) for x in er["開始時間"].split(":")])
-                        ee = time(*[int(x) for x in er["終了時間"].split(":")])
-                    except:
-                        es, ee = time(9,0), time(12,0)
-                    estart = ec3.time_input("開始", value=es)
-                    eend = ec4.time_input("終了", value=ee)
-                    eloc = st.text_input("場所", value=er["場所"])
-                    etanto = st.text_input("担当班", value=er.get("担当班", ""))
-                    etitle = st.text_input("メモ", value=er["メモ"])
-                    haisha_val = er.get("配車", False)
-                    if isinstance(haisha_val, str):
-                        haisha_val = haisha_val.upper() in ("TRUE", "あり")
-                    ehaisha = st.checkbox("配車あり", value=bool(haisha_val))
-
-                    col_save, col_del = st.columns(2)
-                    save_btn = col_save.form_submit_button("💾 保存")
-                    del_btn = col_del.form_submit_button("🗑️ 削除", type="secondary")
-
-                    if save_btn:
-                        ws = get_ws(EVENT_SHEET)
-                        all_rows = ws.get_all_records()
-                        for i, row in enumerate(all_rows, start=2):
-                            if int(row["イベントID"]) == edit_id:
-                                ws.update(f"A{i}:I{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, ehaisha, etitle]])
-                                break
-                        load_events.clear()
-                        st.success("更新しました")
-                        st.rerun()
-
-                    if del_btn:
-                        ws = get_ws(EVENT_SHEET)
-                        all_rows = ws.get_all_records()
-                        for i, row in enumerate(all_rows, start=2):
-                            if int(row["イベントID"]) == edit_id:
-                                ws.delete_rows(i)
-                                break
-                        load_events.clear()
-                        if st.session_state.get("selected_event_id") == edit_id:
-                            st.session_state.pop("selected_event_id", None)
-                        st.success("削除しました")
-                        st.rerun()
-
 # =========================
 # 右：出欠
 # =========================
@@ -343,6 +249,99 @@ with col_right:
                 if st.form_submit_button("保存"):
                     save_attendance_bulk(event_id, status_dict)
                     st.success("保存完了")
+                    st.rerun()
+
+# =========================
+# ➕ イベント追加 / ✏️ 編集・削除
+# =========================
+st.divider()
+with st.expander("➕ イベント追加"):
+    with st.form("event_form"):
+        c1, c2 = st.columns(2)
+        d = c1.date_input("日付", date.today())
+        t = c2.selectbox("種類", ["練習", "試合", "自主練習"])
+        c3, c4 = st.columns(2)
+        start = c3.time_input("開始", value=time(9,0))
+        end = c4.time_input("終了", value=time(12,0))
+        loc = st.text_input("場所")
+        tanto = st.text_input("担当班")
+        title = st.text_input("メモ")
+        haisha = st.checkbox("配車あり", value=False)
+
+        if st.form_submit_button("登録"):
+            ws = get_ws(EVENT_SHEET)
+            load_events.clear()
+            events_df = load_events()
+            new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
+            ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, haisha, title])
+            app_url = st.secrets.get("APP_URL", "")
+            link = f"{app_url}?event_id={new_id}" if app_url else ""
+            wd = WEEKDAYS[pd.Timestamp(d).weekday()]
+            msg = f"【新イベント】\n{d}({wd}) {title}\n{start.strftime('%H:%M')}〜{end.strftime('%H:%M')}\n📍{loc}\n{link}"
+            send_line_message(msg)
+            load_events.clear()
+            st.success("登録OK")
+            st.rerun()
+
+with st.expander("✏️ イベント編集・削除"):
+    if events.empty:
+        st.info("イベントがありません")
+    else:
+        events_sorted2 = events.sort_values("日付")
+        event_options = {
+            int(e["イベントID"]): f"{e['日付'].strftime('%m/%d')}({WEEKDAYS[e['日付'].weekday()]}) {e['種類']} {e['メモ']}"
+            for _, e in events_sorted2.iterrows()
+        }
+        edit_id = st.selectbox("イベントを選択", options=list(event_options.keys()), format_func=lambda x: event_options[x], key="edit_select")
+
+        if edit_id:
+            er = events[events["イベントID"] == edit_id].iloc[0]
+            with st.form("edit_form"):
+                ec1, ec2 = st.columns(2)
+                ed = ec1.date_input("日付", value=er["日付"].date())
+                et = ec2.selectbox("種類", ["練習", "試合", "自主練習"], index=["練習","試合","自主練習"].index(er["種類"]))
+                ec3, ec4 = st.columns(2)
+                try:
+                    es = time(*[int(x) for x in er["開始時間"].split(":")])
+                    ee = time(*[int(x) for x in er["終了時間"].split(":")])
+                except:
+                    es, ee = time(9,0), time(12,0)
+                estart = ec3.time_input("開始", value=es)
+                eend = ec4.time_input("終了", value=ee)
+                eloc = st.text_input("場所", value=er["場所"])
+                etanto = st.text_input("担当班", value=er.get("担当班", ""))
+                etitle = st.text_input("メモ", value=er["メモ"])
+                haisha_val = er.get("配車", False)
+                if isinstance(haisha_val, str):
+                    haisha_val = haisha_val.upper() in ("TRUE", "あり")
+                ehaisha = st.checkbox("配車あり", value=bool(haisha_val))
+
+                col_save, col_del = st.columns(2)
+                save_btn = col_save.form_submit_button("💾 保存")
+                del_btn = col_del.form_submit_button("🗑️ 削除", type="secondary")
+
+                if save_btn:
+                    ws = get_ws(EVENT_SHEET)
+                    all_rows = ws.get_all_records()
+                    for i, row in enumerate(all_rows, start=2):
+                        if int(row["イベントID"]) == edit_id:
+                            ws.update(f"A{i}:I{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, ehaisha, etitle]])
+                            break
+                    load_events.clear()
+                    st.success("更新しました")
+                    st.rerun()
+
+                if del_btn:
+                    ws = get_ws(EVENT_SHEET)
+                    all_rows = ws.get_all_records()
+                    for i, row in enumerate(all_rows, start=2):
+                        if int(row["イベントID"]) == edit_id:
+                            ws.delete_rows(i)
+                            break
+                    load_events.clear()
+                    if st.session_state.get("selected_event_id") == edit_id:
+                        st.session_state.pop("selected_event_id", None)
+                    st.success("削除しました")
                     st.rerun()
 
 # =========================
