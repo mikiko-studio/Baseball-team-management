@@ -148,6 +148,13 @@ def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info="")
                 df["配車"] = ""
             ws.append_rows(df[["イベントID","名前","出欠","配車"]].values.tolist())
 
+    # 出席者を順番に自動配車（haisha_dictが空の場合や未割り当ての場合に使用）
+    if haisha_dict:
+        attend_names = [n for n, s in status_dict.items() if s == "出席"]
+        auto_car = {n: (i // 4) + 1 for i, n in enumerate(attend_names)}
+        for name in attend_names:
+            if not str(haisha_dict.get(name, "")).isdigit():
+                haisha_dict[name] = auto_car[name]
     rows = [[int(event_id), name, status, (haisha_dict or {}).get(name, "")]
             for name, status in status_dict.items()]
     ws.append_rows(rows)
@@ -315,6 +322,21 @@ with col_right:
                 if isinstance(haisha_flag2, str):
                     haisha_flag2 = haisha_flag2.upper() in ("TRUE", "あり")
 
+                # 自動配車割り振り：出席者を順番に4名ずつグループ化
+                auto_car_map = {}
+                if haisha_flag2:
+                    _idx = 0
+                    for _, _p in players.iterrows():
+                        _n = _p["名前"]
+                        _st = "未定"
+                        if not attendance.empty:
+                            _r = attendance[(attendance["イベントID"] == event_id) & (attendance["名前"] == _n)]
+                            if not _r.empty:
+                                _st = _r.iloc[0]["出欠"]
+                        if _st == "出席":
+                            auto_car_map[_n] = (_idx // 4) + 1
+                            _idx += 1
+
                 for _, p in players.iterrows():
                     name = p["名前"]
 
@@ -336,7 +358,11 @@ with col_right:
                             horizontal=True, key=f"{event_id}_{name}",
                             label_visibility="collapsed"
                         )
-                        car_val = int(default_car) if default_car.isdigit() else 1
+                        # 保存済みの手動値があればそれを優先、なければ自動割り振り
+                        if default_car.isdigit():
+                            car_val = int(default_car)
+                        else:
+                            car_val = auto_car_map.get(name, 1)
                         car_num = c3.number_input("号車", min_value=1, max_value=20, value=car_val,
                                                   key=f"car_{event_id}_{name}", label_visibility="collapsed")
                         haisha_dict[name] = car_num
