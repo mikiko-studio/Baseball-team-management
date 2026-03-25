@@ -97,7 +97,7 @@ def load_attendance():
 
 @st.cache_data(ttl=30)
 def load_change_log():
-    df = pd.DataFrame(get_ws(LOG_SHEET).get_all_records())
+    df = pd.DataFrame(get_spreadsheet().worksheet(LOG_SHEET).get_all_records())
     if not df.empty and "日時" in df.columns:
         df["日時dt"] = pd.to_datetime(df["日時"], errors="coerce")
     return df
@@ -426,19 +426,29 @@ with st.expander("✏️ イベント編集・削除"):
                     # 変更ログ
                     _wd = WEEKDAYS[er["日付"].weekday()]
                     _einfo = f"{er['日付'].strftime('%m/%d')}({_wd}) {er['種類']}"
+                    def _s(v):
+                        if v is None:
+                            return ""
+                        try:
+                            if pd.isna(v):
+                                return ""
+                        except:
+                            pass
+                        return str(v).strip()
+
                     field_map = [
                         ("日付",    str(er["日付"].date()),          str(ed)),
-                        ("種類",    er["種類"],                      et),
-                        ("開始時間", er["開始時間"],                  estart.strftime("%H:%M")),
-                        ("終了時間", er["終了時間"],                  eend.strftime("%H:%M")),
-                        ("場所",    er["場所"],                      eloc),
-                        ("担当班",  str(er.get("担当班","")),         etanto),
+                        ("種類",    _s(er["種類"]),                   et),
+                        ("開始時間", _s(er["開始時間"]),               estart.strftime("%H:%M")),
+                        ("終了時間", _s(er["終了時間"]),               eend.strftime("%H:%M")),
+                        ("場所",    _s(er["場所"]),                   eloc),
+                        ("担当班",  _s(er.get("担当班","")),           etanto),
                         ("配車",    str(bool(haisha_val)),           str(ehaisha)),
-                        ("メモ",    str(er.get("メモ","")),           etitle),
+                        ("メモ",    _s(er.get("メモ","")),             etitle),
                     ]
                     log_entries = [
                         [now_str, "イベント", _einfo, f, o, n]
-                        for f, o, n in field_map if str(o).strip() != str(n).strip()
+                        for f, o, n in field_map if o != _s(n)
                     ]
                     write_change_log(log_entries)
                     load_events.clear()
