@@ -115,20 +115,8 @@ with col_left:
 
     st.subheader("📋 イベント一覧（クリックで選択）")
 
-    # 未回答フィルタ
-    show_only_pending = st.checkbox("未回答のみ表示")
     if not events.empty:
         events_sorted = events.sort_values("日付")
-
-        # 未回答フィルタ適用
-        if show_only_pending and not attendance.empty:
-            pending_ids = []
-            for _, e in events_sorted.iterrows():
-                event_id = int(e["イベントID"])
-                answered = attendance[attendance["イベントID"] == event_id]
-                if len(answered) < len(players):
-                    pending_ids.append(event_id)
-            events_sorted = events_sorted[events_sorted["イベントID"].isin(pending_ids)]
 
         for _, e in events_sorted.iterrows():
             # 種類ごとに色分け
@@ -196,8 +184,11 @@ with col_right:
 
             if not attendance.empty:
                 attendees = attendance[(attendance["イベントID"] == event_id) & (attendance["出欠"] == "出席")]
+                pending = attendance[(attendance["イベントID"] == event_id) & (attendance["出欠"] == "未定")]
                 if not attendees.empty:
-                    st.write("出席: " + ", ".join(attendees["名前"].tolist()))
+                    st.write("✅ 出席: " + ", ".join(attendees["名前"].tolist()))
+                if not pending.empty:
+                    st.write("❓ 未定: " + ", ".join(pending["名前"].tolist()))
 
             with st.form("attend"):
                 status_dict = {}
@@ -211,12 +202,15 @@ with col_right:
                         if not row.empty:
                             default = row.iloc[0]["出欠"]
 
-                    status = st.radio(
-                        name,
+                    c1, c2 = st.columns([1, 3])
+                    c1.write(name)
+                    status = c2.radio(
+                        "",
                         ["未定", "出席", "欠席"],
                         index=["未定","出席","欠席"].index(default),
                         horizontal=True,
-                        key=f"{event_id}_{name}"
+                        key=f"{event_id}_{name}",
+                        label_visibility="collapsed"
                     )
 
                     status_dict[name] = status
