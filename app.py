@@ -179,20 +179,27 @@ st.markdown("""
 events = load_events()
 
 # 直近1週間の変更ログサマリー
-_log = load_change_log()
-if not _log.empty and "日時dt" in _log.columns:
+try:
+    _log = load_change_log()
     _week_ago = pd.Timestamp.now() - pd.Timedelta(days=7)
-    _recent = _log[_log["日時dt"] >= _week_ago].sort_values("日時dt", ascending=False)
-    if not _recent.empty:
-        st.markdown("**📢 直近1週間の変更**")
-        for _, r in _recent.iterrows():
-            _date = r["日時dt"].strftime("%m/%d %H:%M") if pd.notna(r["日時dt"]) else ""
-            if r["種別"] == "イベント":
-                st.caption(f"📅 {_date}　{r['イベント情報']}　{r['変更項目']}: {r['変更前']} → {r['変更後']}")
-            else:
-                _icon = "✅" if r["変更後"] == "出席" else "❌" if r["変更後"] == "欠席" else "❓"
-                st.caption(f"{_icon} {_date}　{r['イベント情報']}　{r['変更項目']}: {r['変更前']} → {r['変更後']}")
-        st.markdown("")
+    if not _log.empty and "日時dt" in _log.columns:
+        _recent = _log[_log["日時dt"] >= _week_ago].sort_values("日時dt", ascending=False)
+        if not _recent.empty:
+            st.markdown("**📢 直近1週間の変更**")
+            for _, r in _recent.iterrows():
+                _date = r["日時dt"].strftime("%m/%d %H:%M") if pd.notna(r["日時dt"]) else ""
+                if r["種別"] == "イベント":
+                    st.caption(f"📅 {_date}　{r['イベント情報']}　{r['変更項目']}: {r['変更前']} → {r['変更後']}")
+                else:
+                    _icon = "✅" if r["変更後"] == "出席" else "❌" if r["変更後"] == "欠席" else "❓"
+                    st.caption(f"{_icon} {_date}　{r['イベント情報']}　{r['変更項目']}: {r['変更前']} → {r['変更後']}")
+            st.markdown("")
+        else:
+            st.caption("📢 直近1週間の変更はありません")
+    else:
+        st.caption("📢 直近1週間の変更はありません")
+except Exception as e:
+    st.warning(f"変更ログの読み込みに失敗しました: {e}")
 
 # URLパラメータからイベントID取得（LINE直リンク対応）
 query_params = st.query_params
