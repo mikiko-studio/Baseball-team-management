@@ -196,7 +196,7 @@ with col_left:
         else:
             events_sorted2 = events.sort_values("日付")
             event_options = {
-                int(e["イベントID"]): f"{e['日付'].strftime('%m/%d')}({WEEKDAYS[e['日付'].weekday()]}) {e['タイトル']}"
+                int(e["イベントID"]): f"{e['日付'].strftime('%m/%d')}({WEEKDAYS[e['日付'].weekday()]}) {e['メモ']}"
                 for _, e in events_sorted2.iterrows()
             }
             edit_id = st.selectbox("イベントを選択", options=list(event_options.keys()), format_func=lambda x: event_options[x], key="edit_select")
@@ -216,7 +216,7 @@ with col_left:
                     estart = ec3.time_input("開始", value=es)
                     eend = ec4.time_input("終了", value=ee)
                     eloc = st.text_input("場所", value=er["場所"])
-                    etitle = st.text_input("メモ", value=er["タイトル"])
+                    etitle = st.text_input("メモ", value=er["メモ"])
 
                     col_save, col_del = st.columns(2)
                     save_btn = col_save.form_submit_button("💾 保存")
@@ -264,10 +264,10 @@ with col_right:
 
             wd = WEEKDAYS[event_row['日付'].weekday()]
             st.write(f"📅 {event_row['日付'].strftime('%m/%d')}({wd}) {event_row['種類']} {event_row['開始時間']}〜{event_row['終了時間']} {event_row['場所']}")
-            st.write(f"📝 {event_row['タイトル']}" if event_row['タイトル'] else "")
+            st.write(f"📝 {event_row['メモ']}" if event_row['メモ'] else "")
 
             btn_col1, btn_col2 = st.columns(2)
-            gcal = google_calendar_url(event_row['種類'], event_row['日付'], event_row['開始時間'], event_row['終了時間'], event_row['場所'], event_row['タイトル'])
+            gcal = google_calendar_url(event_row['種類'], event_row['日付'], event_row['開始時間'], event_row['終了時間'], event_row['場所'], event_row['メモ'])
             if gcal:
                 btn_col1.link_button("📆 Googleカレンダーに追加", gcal)
             if btn_col2.button("📣 LINEに出欠状況を通知", key="line_notify"):
@@ -276,7 +276,7 @@ with col_right:
                     出席 = ", ".join(att[att["出欠"]=="出席"]["名前"].tolist()) or "なし"
                     欠席 = ", ".join(att[att["出欠"]=="欠席"]["名前"].tolist()) or "なし"
                     未定 = ", ".join(att[att["出欠"]=="未定"]["名前"].tolist()) or "なし"
-                    msg = f"【出欠状況】{event_row['日付'].strftime('%m/%d')}({wd}) {event_row['タイトル']}\n✅出席: {出席}\n❌欠席: {欠席}\n❓未定: {未定}"
+                    msg = f"【出欠状況】{event_row['日付'].strftime('%m/%d')}({wd}) {event_row['メモ']}\n✅出席: {出席}\n❌欠席: {欠席}\n❓未定: {未定}"
                     ok, detail = send_line_message(msg)
                     st.success("LINE送信OK") if ok else st.error(f"送信失敗: {detail}")
 
