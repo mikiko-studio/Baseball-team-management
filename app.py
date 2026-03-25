@@ -106,12 +106,16 @@ def write_change_log(entries):
     """entries: list of [日時, 種別, イベント情報, 変更項目, 変更前, 変更後]"""
     if not entries:
         return
-    ws = get_ws(LOG_SHEET)
-    vals = ws.get_all_values()
-    if not vals:
-        ws.append_row(["日時", "種別", "イベント情報", "変更項目", "変更前", "変更後"])
-    ws.append_rows(entries)
-    load_change_log.clear()
+    try:
+        # get_ws キャッシュをバイパスして直接取得
+        ws = get_spreadsheet().worksheet(LOG_SHEET)
+        vals = ws.get_all_values()
+        if not vals:
+            ws.append_row(["日時", "種別", "イベント情報", "変更項目", "変更前", "変更後"])
+        ws.append_rows(entries)
+        load_change_log.clear()
+    except Exception as e:
+        st.warning(f"変更ログ書き込みエラー: {e}")
 
 # 上書き保存
 def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info=""):
@@ -438,7 +442,7 @@ with st.expander("✏️ イベント編集・削除"):
                     ]
                     write_change_log(log_entries)
                     load_events.clear()
-                    st.success("更新しました")
+                    st.success(f"更新しました（変更{len(log_entries)}件をログに記録）")
                     st.rerun()
 
                 if del_btn:
