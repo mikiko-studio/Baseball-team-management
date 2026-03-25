@@ -22,9 +22,9 @@ SCOPES = [
 
 @st.cache_resource
 def get_spreadsheet():
-    import json
-    if "gcp_service_account" in st.secrets:
-        info = json.loads(json.dumps(dict(st.secrets["gcp_service_account"])))
+    import json, base64
+    if "gcp_service_account_b64" in st.secrets:
+        info = json.loads(base64.b64decode(st.secrets["gcp_service_account_b64"]).decode("utf-8"))
         client = gspread.service_account_from_dict(info)
     else:
         client = gspread.service_account(filename="service_account.json")
