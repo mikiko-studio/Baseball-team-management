@@ -184,7 +184,7 @@ with col_left:
                 load_events.clear()
                 events_df = load_events()
                 new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
-                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, title, haisha])
+                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, haisha, title])
                 app_url = st.secrets.get("APP_URL", "")
                 link = f"{app_url}?event_id={new_id}" if app_url else ""
                 wd = WEEKDAYS[pd.Timestamp(d).weekday()]
@@ -239,7 +239,7 @@ with col_left:
                         all_rows = ws.get_all_records()
                         for i, row in enumerate(all_rows, start=2):
                             if int(row["イベントID"]) == edit_id:
-                                ws.update(f"A{i}:I{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, etitle, ehaisha]])
+                                ws.update(f"A{i}:I{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, ehaisha, etitle]])
                                 break
                         load_events.clear()
                         st.success("更新しました")
