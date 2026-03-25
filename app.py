@@ -157,18 +157,22 @@ with col_left:
 # 右：出欠
 # =========================
 with col_right:
-    st.markdown("#### ✅ イベント詳細＋出欠入力")
+    event_id = st.session_state.get("selected_event_id")
+    event_row = events[events["イベントID"] == event_id].iloc[0] if (event_id and not events.empty and event_id in events["イベントID"].values) else None
+
+    hd_col, btn_col = st.columns([3, 1])
+    hd_col.markdown("#### ✅ イベント詳細＋出欠入力")
+    if event_row is not None:
+        gcal = google_calendar_url(event_row['種類'], event_row['日付'], event_row['開始時間'], event_row['終了時間'], event_row['場所'], event_row['メモ'])
+        if gcal:
+            btn_col.link_button("📆 Googleカレンダー", gcal)
 
     if players.empty or events.empty:
         st.warning("先に選手・イベント登録")
     else:
-        event_id = st.session_state.get("selected_event_id")
-
         if not event_id:
             st.info("左からイベントを選択してください")
         else:
-            event_row = events[events["イベントID"] == event_id].iloc[0]
-
             wd = WEEKDAYS[event_row['日付'].weekday()]
             st.write(f"📅 {event_row['日付'].strftime('%m/%d')}({wd}) {event_row['種類']} {event_row['開始時間']}〜{event_row['終了時間']} {event_row['場所']}")
             tanto_val = event_row.get('担当班', '')
@@ -176,10 +180,6 @@ with col_right:
                 st.write(f"👥 担当班: {tanto_val}")
             if event_row['メモ']:
                 st.write(f"📝 {event_row['メモ']}")
-
-            gcal = google_calendar_url(event_row['種類'], event_row['日付'], event_row['開始時間'], event_row['終了時間'], event_row['場所'], event_row['メモ'])
-            if gcal:
-                st.link_button("📆 Googleカレンダーに追加", gcal)
 
             if not attendance.empty:
                 attendees = attendance[(attendance["イベントID"] == event_id) & (attendance["出欠"] == "出席")]
