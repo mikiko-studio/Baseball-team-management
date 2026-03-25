@@ -391,14 +391,17 @@ with st.expander("✏️ イベント編集・削除"):
     if events.empty:
         st.info("イベントがありません")
     else:
-        events_sorted2 = events.sort_values("日付")
+        events_sorted2 = events[events["日付"] >= pd.Timestamp(date.today())].sort_values("日付")
         event_options = {
             int(e["イベントID"]): f"{e['日付'].strftime('%m/%d')}({WEEKDAYS[e['日付'].weekday()]}) {e['種類']} {e['メモ']}"
             for _, e in events_sorted2.iterrows()
         }
-        edit_id = st.selectbox("イベントを選択", options=list(event_options.keys()), format_func=lambda x: event_options[x], key="edit_select")
+        if events_sorted2.empty:
+            st.info("本日以降のイベントがありません")
+        else:
+            edit_id = st.selectbox("イベントを選択", options=list(event_options.keys()), format_func=lambda x: event_options[x], key="edit_select")
 
-        if edit_id:
+        if not events_sorted2.empty and edit_id:
             er = events[events["イベントID"] == edit_id].iloc[0]
             with st.form("edit_form"):
                 ec1, ec2 = st.columns(2)
