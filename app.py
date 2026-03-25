@@ -177,13 +177,14 @@ with col_left:
             loc = st.text_input("場所")
             tanto = st.text_input("担当班")
             title = st.text_input("メモ")
+            haisha = st.checkbox("配車あり", value=False)
 
             if st.form_submit_button("登録"):
                 ws = get_ws(EVENT_SHEET)
                 load_events.clear()
                 events_df = load_events()
                 new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
-                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, title])
+                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, title, haisha])
                 app_url = st.secrets.get("APP_URL", "")
                 link = f"{app_url}?event_id={new_id}" if app_url else ""
                 wd = WEEKDAYS[pd.Timestamp(d).weekday()]
@@ -224,6 +225,10 @@ with col_left:
                     eloc = st.text_input("場所", value=er["場所"])
                     etanto = st.text_input("担当班", value=er.get("担当班", ""))
                     etitle = st.text_input("メモ", value=er["メモ"])
+                    haisha_val = er.get("配車", False)
+                    if isinstance(haisha_val, str):
+                        haisha_val = haisha_val.upper() in ("TRUE", "あり")
+                    ehaisha = st.checkbox("配車あり", value=bool(haisha_val))
 
                     col_save, col_del = st.columns(2)
                     save_btn = col_save.form_submit_button("💾 保存")
@@ -234,7 +239,7 @@ with col_left:
                         all_rows = ws.get_all_records()
                         for i, row in enumerate(all_rows, start=2):
                             if int(row["イベントID"]) == edit_id:
-                                ws.update(f"A{i}:H{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, etitle]])
+                                ws.update(f"A{i}:I{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, etitle, ehaisha]])
                                 break
                         load_events.clear()
                         st.success("更新しました")
@@ -294,10 +299,21 @@ with col_right:
             if not attendance.empty:
                 attendees = attendance[(attendance["イベントID"] == event_id) & (attendance["出欠"] == "出席")]
                 pending = attendance[(attendance["イベントID"] == event_id) & (attendance["出欠"] == "未定")]
+
+                haisha_flag = event_row.get("配車", False)
+                if isinstance(haisha_flag, str):
+                    haisha_flag = haisha_flag.upper() in ("TRUE", "あり")
+
                 if not attendees.empty:
-                    st.write("✅ 出席: " + ", ".join(attendees["名前"].tolist()))
+                    if haisha_flag:
+                        names = attendees["名前"].tolist()
+                        groups = [names[i:i+4] for i in range(0, len(names), 4)]
+                        for i, group in enumerate(groups, 1):
+                            st.write(f"🚗 {i}号車: " + "、".join(group))
+                    else:
+                        st.write("✅ 出席: " + "、".join(attendees["名前"].tolist()))
                 if not pending.empty:
-                    st.write("❓ 未定: " + ", ".join(pending["名前"].tolist()))
+                    st.write("❓ 未定: " + "、".join(pending["名前"].tolist()))
 
             with st.form("attend"):
                 status_dict = {}
