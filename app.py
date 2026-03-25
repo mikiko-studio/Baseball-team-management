@@ -115,7 +115,11 @@ def google_calendar_url(title, dt, start_str, end_str, location, details=""):
     return url
 
 st.set_page_config(layout="wide")
-st.markdown("### ⚾ 少年野球チーム管理アプリ（カレンダー＋出欠一体型）")
+st.markdown("""
+<div style="border:2px solid #4a9eda; border-radius:8px; padding:6px 16px; display:inline-block;">
+<h3 style="margin:0;">⚾ 少年野球チーム管理アプリ（カレンダー＋出欠一体型）</h3>
+</div>
+""", unsafe_allow_html=True)
 
 # =========================
 # メインデータ
@@ -170,6 +174,7 @@ with col_left:
             start = c3.time_input("開始", value=time(9,0))
             end = c4.time_input("終了", value=time(12,0))
             loc = st.text_input("場所")
+            tanto = st.text_input("担当班")
             title = st.text_input("メモ")
 
             if st.form_submit_button("登録"):
@@ -177,7 +182,7 @@ with col_left:
                 load_events.clear()
                 events_df = load_events()
                 new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
-                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, title, loc])
+                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, title, loc, tanto])
                 app_url = st.secrets.get("APP_URL", "")
                 link = f"{app_url}?event_id={new_id}" if app_url else ""
                 wd = WEEKDAYS[pd.Timestamp(d).weekday()]
@@ -216,6 +221,7 @@ with col_left:
                     estart = ec3.time_input("開始", value=es)
                     eend = ec4.time_input("終了", value=ee)
                     eloc = st.text_input("場所", value=er["場所"])
+                    etanto = st.text_input("担当班", value=er.get("担当班", ""))
                     etitle = st.text_input("メモ", value=er["メモ"])
 
                     col_save, col_del = st.columns(2)
@@ -227,7 +233,7 @@ with col_left:
                         all_rows = ws.get_all_records()
                         for i, row in enumerate(all_rows, start=2):
                             if int(row["イベントID"]) == edit_id:
-                                ws.update(f"A{i}:G{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, etitle, eloc]])
+                                ws.update(f"A{i}:H{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, etitle, eloc, etanto]])
                                 break
                         load_events.clear()
                         st.success("更新しました")
@@ -264,7 +270,11 @@ with col_right:
 
             wd = WEEKDAYS[event_row['日付'].weekday()]
             st.write(f"📅 {event_row['日付'].strftime('%m/%d')}({wd}) {event_row['種類']} {event_row['開始時間']}〜{event_row['終了時間']} {event_row['場所']}")
-            st.write(f"📝 {event_row['メモ']}" if event_row['メモ'] else "")
+            tanto_val = event_row.get('担当班', '')
+            if tanto_val:
+                st.write(f"👥 担当班: {tanto_val}")
+            if event_row['メモ']:
+                st.write(f"📝 {event_row['メモ']}")
 
             btn_col1, btn_col2 = st.columns(2)
             gcal = google_calendar_url(event_row['種類'], event_row['日付'], event_row['開始時間'], event_row['終了時間'], event_row['場所'], event_row['メモ'])
