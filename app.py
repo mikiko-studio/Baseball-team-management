@@ -116,7 +116,7 @@ def google_calendar_url(title, dt, start_str, end_str, location, details=""):
 
 st.set_page_config(layout="wide")
 st.markdown("""
-<div style="border:2px solid #4a9eda; border-radius:8px; padding:6px 16px; display:inline-block;">
+<div style="border:2px solid currentColor; border-radius:8px; padding:6px 16px; display:inline-block;">
 <h3 style="margin:0;">⚾ 少年野球チーム管理アプリ（カレンダー＋出欠一体型）</h3>
 </div>
 """, unsafe_allow_html=True)
@@ -182,7 +182,7 @@ with col_left:
                 load_events.clear()
                 events_df = load_events()
                 new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
-                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, title, loc, tanto])
+                ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, title])
                 app_url = st.secrets.get("APP_URL", "")
                 link = f"{app_url}?event_id={new_id}" if app_url else ""
                 wd = WEEKDAYS[pd.Timestamp(d).weekday()]
@@ -233,7 +233,7 @@ with col_left:
                         all_rows = ws.get_all_records()
                         for i, row in enumerate(all_rows, start=2):
                             if int(row["イベントID"]) == edit_id:
-                                ws.update(f"A{i}:H{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, etitle, eloc, etanto]])
+                                ws.update(f"A{i}:H{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, etitle]])
                                 break
                         load_events.clear()
                         st.success("更新しました")
