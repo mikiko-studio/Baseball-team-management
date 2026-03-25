@@ -5,7 +5,7 @@ from utils import (check_password, load_players, load_events, load_attendance,
                    load_change_log, save_attendance_bulk, google_calendar_url,
                    WEEKDAYS)
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded")
 
 if not check_password():
     st.stop()

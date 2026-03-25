@@ -1,7 +1,7 @@
 import streamlit as st
 from utils import check_password, get_ws, load_players, PLAYER_SHEET, GRADES
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded")
 
 if not check_password():
     st.stop()
