@@ -115,7 +115,7 @@ def google_calendar_url(title, dt, start_str, end_str, location, details=""):
     return url
 
 st.set_page_config(layout="wide")
-st.title("⚾ 少年野球チーム管理アプリ（カレンダー＋出欠一体型）")
+st.markdown("### ⚾ 少年野球チーム管理アプリ（カレンダー＋出欠一体型）")
 
 # =========================
 # メインデータ
@@ -169,8 +169,8 @@ with col_left:
             c3, c4 = st.columns(2)
             start = c3.time_input("開始", value=time(9,0))
             end = c4.time_input("終了", value=time(12,0))
-            title = st.text_input("タイトル")
             loc = st.text_input("場所")
+            title = st.text_input("メモ")
 
             if st.form_submit_button("登録"):
                 ws = get_ws(EVENT_SHEET)
@@ -215,8 +215,8 @@ with col_left:
                         es, ee = time(9,0), time(12,0)
                     estart = ec3.time_input("開始", value=es)
                     eend = ec4.time_input("終了", value=ee)
-                    etitle = st.text_input("タイトル", value=er["タイトル"])
                     eloc = st.text_input("場所", value=er["場所"])
+                    etitle = st.text_input("メモ", value=er["タイトル"])
 
                     col_save, col_del = st.columns(2)
                     save_btn = col_save.form_submit_button("💾 保存")
@@ -264,7 +264,7 @@ with col_right:
 
             wd = WEEKDAYS[event_row['日付'].weekday()]
             st.write(f"📅 {event_row['日付'].strftime('%m/%d')}({wd}) {event_row['種類']} {event_row['開始時間']}〜{event_row['終了時間']} {event_row['場所']}")
-            st.write(f"📝 {event_row['タイトル']}")
+            st.write(f"📝 {event_row['タイトル']}" if event_row['タイトル'] else "")
 
             btn_col1, btn_col2 = st.columns(2)
             gcal = google_calendar_url(event_row['種類'], event_row['日付'], event_row['開始時間'], event_row['終了時間'], event_row['場所'], event_row['タイトル'])
