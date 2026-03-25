@@ -1,13 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, time
-from utils import (check_password, get_ws, get_spreadsheet, load_events, write_change_log,
+from utils import (get_ws, get_spreadsheet, load_events, write_change_log,
                    now_jst, WEEKDAYS, EVENT_SHEET)
-
-st.set_page_config(layout="wide", initial_sidebar_state="expanded")
-
-if not check_password():
-    st.stop()
 
 st.markdown("### ➕ イベント追加")
 
