@@ -160,7 +160,8 @@ with col_left:
             wd = WEEKDAYS[e['日付'].weekday()]
             label = f"{icon} {e['日付'].strftime('%m/%d')}({wd}) {e['種類']} {e['開始時間']}〜{e['終了時間']} {e['場所']}"
 
-            if st.button(label, key=f"list_{e['イベントID']}"):
+            is_selected = st.session_state.get("selected_event_id") == int(e["イベントID"])
+            if st.button(label, key=f"list_{e['イベントID']}", type="primary" if is_selected else "secondary"):
                 st.session_state["selected_event_id"] = int(e["イベントID"])
                 st.session_state.pop("edit_event_id", None)
 
