@@ -41,6 +41,7 @@ SPREADSHEET_ID = "17s98-7sAmcom90WjoHcwrPuz8IgKGFSI1c8quT4iteg"
 PLAYER_SHEET = "選手名簿"
 EVENT_SHEET = "イベント"
 ATTEND_SHEET = "出席管理"
+LOG_SHEET   = "変更ログ"
 WEEKDAYS = ["月","火","水","木","金","土","日"]
 
 GRADES = ["1年","2年","3年","4年","5年","6年"]
@@ -94,11 +95,36 @@ def load_attendance():
 
     return df
 
+@st.cache_data(ttl=30)
+def load_change_log():
+    df = pd.DataFrame(get_ws(LOG_SHEET).get_all_records())
+    if not df.empty and "日時" in df.columns:
+        df["日時dt"] = pd.to_datetime(df["日時"], errors="coerce")
+    return df
+
+def write_change_log(entries):
+    """entries: list of [日時, 種別, イベント情報, 変更項目, 変更前, 変更後]"""
+    if not entries:
+        return
+    ws = get_ws(LOG_SHEET)
+    vals = ws.get_all_values()
+    if not vals:
+        ws.append_row(["日時", "種別", "イベント情報", "変更項目", "変更前", "変更後"])
+    ws.append_rows(entries)
+    load_change_log.clear()
+
 # 上書き保存
-def save_attendance_bulk(event_id, status_dict, haisha_dict=None):
+def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info=""):
     ws = get_ws(ATTEND_SHEET)
     load_attendance.clear()
     df = load_attendance()
+
+    # 変更ログ用：保存前の出欠を記録
+    old_status = {}
+    if not df.empty:
+        ev_df = df[df["イベントID"] == event_id]
+        for _, r in ev_df.iterrows():
+            old_status[r["名前"]] = r["出欠"]
 
     if not df.empty:
         df = df.drop_duplicates(subset=["イベントID", "名前"], keep="last")
@@ -106,7 +132,6 @@ def save_attendance_bulk(event_id, status_dict, haisha_dict=None):
         ws.clear()
         ws.append_row(["イベントID", "名前", "出欠", "配車"])
         if not df.empty:
-            # 既存データに配車列がなければ空欄で補完
             if "配車" not in df.columns:
                 df["配車"] = ""
             ws.append_rows(df[["イベントID","名前","出欠","配車"]].values.tolist())
@@ -115,6 +140,15 @@ def save_attendance_bulk(event_id, status_dict, haisha_dict=None):
             for name, status in status_dict.items()]
     ws.append_rows(rows)
     load_attendance.clear()
+
+    # 変更ログ書き込み
+    now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+    log_entries = []
+    for name, new_st in status_dict.items():
+        old_st = old_status.get(name, "未定")
+        if old_st != new_st:
+            log_entries.append([now_str, "出欠", event_info, name, old_st, new_st])
+    write_change_log(log_entries)
 
 
 # Googleカレンダー追加URL生成
@@ -144,26 +178,20 @@ st.markdown("""
 # =========================
 events = load_events()
 
-# 直近1週間の更新サマリー
-if not events.empty and "更新日時" in events.columns:
-    from datetime import datetime, timedelta
-    week_ago = pd.Timestamp.now() - pd.Timedelta(days=7)
-    events["_更新日時dt"] = pd.to_datetime(events["更新日時"], errors="coerce")
-    recent = events[events["_更新日時dt"] >= week_ago].sort_values("_更新日時dt", ascending=False)
-    if not recent.empty:
-        _att = load_attendance()
-        lines = []
-        for _, e in recent.iterrows():
-            icon = "🔴" if e["種類"] == "試合" else "🔵" if e["種類"] == "練習" else "⚪"
-            wd = WEEKDAYS[e["日付"].weekday()]
-            att_e = _att[_att["イベントID"] == e["イベントID"]] if not _att.empty else pd.DataFrame()
-            n_attend = len(att_e[att_e["出欠"] == "出席"]) if not att_e.empty else 0
-            n_absent = len(att_e[att_e["出欠"] == "欠席"]) if not att_e.empty else 0
-            updated = e["_更新日時dt"].strftime("%m/%d %H:%M") if pd.notna(e["_更新日時dt"]) else ""
-            lines.append(f"{icon} **{e['日付'].strftime('%m/%d')}({wd}) {e['種類']}** {e['場所']}　出席{n_attend}名 / 欠席{n_absent}名　*更新:{updated}*")
-        st.markdown("**📢 直近1週間の更新**")
-        for l in lines:
-            st.markdown(l)
+# 直近1週間の変更ログサマリー
+_log = load_change_log()
+if not _log.empty and "日時dt" in _log.columns:
+    _week_ago = pd.Timestamp.now() - pd.Timedelta(days=7)
+    _recent = _log[_log["日時dt"] >= _week_ago].sort_values("日時dt", ascending=False)
+    if not _recent.empty:
+        st.markdown("**📢 直近1週間の変更**")
+        for _, r in _recent.iterrows():
+            _date = r["日時dt"].strftime("%m/%d %H:%M") if pd.notna(r["日時dt"]) else ""
+            if r["種別"] == "イベント":
+                st.caption(f"📅 {_date}　{r['イベント情報']}　{r['変更項目']}: {r['変更前']} → {r['変更後']}")
+            else:
+                _icon = "✅" if r["変更後"] == "出席" else "❌" if r["変更後"] == "欠席" else "❓"
+                st.caption(f"{_icon} {_date}　{r['イベント情報']}　{r['変更項目']}: {r['変更前']} → {r['変更後']}")
         st.markdown("")
 
 # URLパラメータからイベントID取得（LINE直リンク対応）
@@ -302,7 +330,9 @@ with col_right:
                     status_dict[name] = status
 
                 if st.form_submit_button("保存"):
-                    save_attendance_bulk(event_id, status_dict, haisha_dict if haisha_flag2 else None)
+                    _wd = WEEKDAYS[event_row["日付"].weekday()]
+                    _einfo = f"{event_row['日付'].strftime('%m/%d')}({_wd}) {event_row['種類']}"
+                    save_attendance_bulk(event_id, status_dict, haisha_dict if haisha_flag2 else None, _einfo)
                     st.success("保存完了")
                     st.rerun()
 
@@ -379,6 +409,24 @@ with st.expander("✏️ イベント編集・削除"):
                             now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
                             ws.update(f"A{i}:J{i}", [[edit_id, str(ed), estart.strftime("%H:%M"), eend.strftime("%H:%M"), et, eloc, etanto, ehaisha, etitle, now_str]])
                             break
+                    # 変更ログ
+                    _wd = WEEKDAYS[er["日付"].weekday()]
+                    _einfo = f"{er['日付'].strftime('%m/%d')}({_wd}) {er['種類']}"
+                    field_map = [
+                        ("日付",    str(er["日付"].date()),          str(ed)),
+                        ("種類",    er["種類"],                      et),
+                        ("開始時間", er["開始時間"],                  estart.strftime("%H:%M")),
+                        ("終了時間", er["終了時間"],                  eend.strftime("%H:%M")),
+                        ("場所",    er["場所"],                      eloc),
+                        ("担当班",  str(er.get("担当班","")),         etanto),
+                        ("配車",    str(bool(haisha_val)),           str(ehaisha)),
+                        ("メモ",    str(er.get("メモ","")),           etitle),
+                    ]
+                    log_entries = [
+                        [now_str, "イベント", _einfo, f, o, n]
+                        for f, o, n in field_map if str(o).strip() != str(n).strip()
+                    ]
+                    write_change_log(log_entries)
                     load_events.clear()
                     st.success("更新しました")
                     st.rerun()
