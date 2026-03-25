@@ -367,6 +367,9 @@ with st.expander("➕ イベント追加"):
             new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
             now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
             ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"), t, loc, tanto, haisha, title, now_str])
+            _wd = WEEKDAYS[pd.Timestamp(d).weekday()]
+            _einfo = f"{d.strftime('%m/%d')}({_wd}) {t}"
+            write_change_log([[now_str, "イベント", _einfo, "新規追加", "", f"{loc} {start.strftime('%H:%M')}〜{end.strftime('%H:%M')}"]])
             load_events.clear()
             st.success("登録OK")
             st.rerun()
@@ -445,6 +448,10 @@ with st.expander("✏️ イベント編集・削除"):
                         if int(row["イベントID"]) == edit_id:
                             ws.delete_rows(i)
                             break
+                    now_str = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+                    _wd = WEEKDAYS[er["日付"].weekday()]
+                    _einfo = f"{er['日付'].strftime('%m/%d')}({_wd}) {er['種類']}"
+                    write_change_log([[now_str, "イベント", _einfo, "削除", _einfo, ""]])
                     load_events.clear()
                     if st.session_state.get("selected_event_id") == edit_id:
                         st.session_state.pop("selected_event_id", None)
