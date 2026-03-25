@@ -95,7 +95,6 @@ def load_attendance():
 
     return df
 
-@st.cache_data(ttl=30)
 def load_change_log():
     df = pd.DataFrame(get_spreadsheet().worksheet(LOG_SHEET).get_all_records())
     if not df.empty and "日時" in df.columns:
@@ -107,13 +106,11 @@ def write_change_log(entries):
     if not entries:
         return
     try:
-        # get_ws キャッシュをバイパスして直接取得
         ws = get_spreadsheet().worksheet(LOG_SHEET)
         vals = ws.get_all_values()
         if not vals:
             ws.append_row(["日時", "種別", "イベント情報", "変更項目", "変更前", "変更後"])
         ws.append_rows(entries)
-        load_change_log.clear()
     except Exception as e:
         st.warning(f"変更ログ書き込みエラー: {e}")
 
