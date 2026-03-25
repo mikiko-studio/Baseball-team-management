@@ -140,7 +140,7 @@ col_left, col_right = st.columns([1,2])
 with col_left:
     
 
-    st.subheader("📋 イベント一覧（クリックで選択）")
+    st.markdown("#### 📋 イベント一覧（クリックで選択）")
 
     if not events.empty:
         events_sorted = events.sort_values("日付")
@@ -250,7 +250,7 @@ with col_left:
 # 右：出欠
 # =========================
 with col_right:
-    st.subheader("✅ 出欠入力")
+    st.markdown("#### ✅ 出欠入力")
 
     if players.empty or events.empty:
         st.warning("先に選手・イベント登録")
@@ -336,7 +336,7 @@ with st.expander("🔧 LINE設定・テスト"):
 # 👤 選手管理
 # =========================
 st.divider()
-st.subheader("👤 選手管理")
+st.markdown("#### 👤 選手管理")
 players_df = load_players()
 if not players_df.empty:
     st.dataframe(players_df, use_container_width=True)
