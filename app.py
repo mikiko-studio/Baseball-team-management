@@ -168,7 +168,7 @@ with col_left:
 # 右：出欠
 # =========================
 with col_right:
-    st.markdown("#### ✅ 出欠入力")
+    st.markdown("#### ✅ イベント詳細＋出欠入力")
 
     if players.empty or events.empty:
         st.warning("先に選手・イベント登録")
