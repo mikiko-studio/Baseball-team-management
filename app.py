@@ -18,7 +18,7 @@ def check_password():
         return True
 
     st.markdown("""
-    <div style="border:0.5px solid currentColor; border-radius:8px; padding:6px 16px; display:inline-block;">
+    <div style="background-color:rgba(128,128,128,0.15); border-radius:8px; padding:6px 16px; display:inline-block;">
     <h3 style="margin:0;">⚾ 少年野球チーム管理アプリ</h3>
     </div>
     """, unsafe_allow_html=True)
@@ -134,7 +134,7 @@ def google_calendar_url(title, dt, start_str, end_str, location, details=""):
 
 st.set_page_config(layout="wide")
 st.markdown("""
-<div style="border:0.5px solid currentColor; border-radius:8px; padding:6px 16px; display:inline-block;">
+<div style="background-color:rgba(128,128,128,0.15); border-radius:8px; padding:6px 16px; display:inline-block;">
 <h3 style="margin:0;">⚾ 少年野球チーム管理アプリ（カレンダー＋出欠一体型）</h3>
 </div>
 """, unsafe_allow_html=True)
