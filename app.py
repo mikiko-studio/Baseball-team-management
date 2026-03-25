@@ -65,23 +65,26 @@ def load_attendance():
     return df
 
 # 上書き保存
-def save_attendance_bulk(event_id, status_dict):
+def save_attendance_bulk(event_id, status_dict, haisha_dict=None):
     ws = get_ws(ATTEND_SHEET)
-    load_attendance.clear()  # キャッシュを破棄して最新データを取得
+    load_attendance.clear()
     df = load_attendance()
 
     if not df.empty:
-        # 重複排除してから対象イベントを除外
         df = df.drop_duplicates(subset=["イベントID", "名前"], keep="last")
         df = df[df["イベントID"] != event_id]
         ws.clear()
-        ws.append_row(["イベントID", "名前", "出欠"])
+        ws.append_row(["イベントID", "名前", "出欠", "配車"])
         if not df.empty:
-            ws.append_rows(df.values.tolist())
+            # 既存データに配車列がなければ空欄で補完
+            if "配車" not in df.columns:
+                df["配車"] = ""
+            ws.append_rows(df[["イベントID","名前","出欠","配車"]].values.tolist())
 
-    rows = [[int(event_id), name, status] for name, status in status_dict.items()]
+    rows = [[int(event_id), name, status, (haisha_dict or {}).get(name, "")]
+            for name, status in status_dict.items()]
     ws.append_rows(rows)
-    load_attendance.clear()  # 保存後もキャッシュをリセット
+    load_attendance.clear()
 
 # LINE Messaging API 通知
 def send_line_message(message):
@@ -214,10 +217,13 @@ with col_right:
 
                 if not attendees.empty:
                     if haisha_flag:
-                        names = attendees["名前"].tolist()
-                        groups = [names[i:i+4] for i in range(0, len(names), 4)]
-                        for i, group in enumerate(groups, 1):
-                            st.write(f"🚗 {i}号車: " + "、".join(group))
+                        if "配車" in attendees.columns and attendees["配車"].astype(str).str.strip().ne("").any():
+                            for car_num, grp in attendees.groupby("配車", sort=True):
+                                st.write(f"🚗 {car_num}号車: " + "、".join(grp["名前"].tolist()))
+                        else:
+                            names = attendees["名前"].tolist()
+                            for i, group in enumerate([names[j:j+4] for j in range(0, len(names), 4)], 1):
+                                st.write(f"🚗 {i}号車: " + "、".join(group))
                     else:
                         st.write("✅ 出席: " + "、".join(attendees["名前"].tolist()))
                 if not pending.empty:
@@ -225,31 +231,51 @@ with col_right:
 
             with st.form("attend"):
                 status_dict = {}
+                haisha_dict = {}
+
+                haisha_flag2 = event_row.get("配車", False)
+                if isinstance(haisha_flag2, str):
+                    haisha_flag2 = haisha_flag2.upper() in ("TRUE", "あり")
 
                 for _, p in players.iterrows():
                     name = p["名前"]
 
-                    default = "未定"
+                    default_status = "未定"
+                    default_car = ""
                     if not attendance.empty:
                         row = attendance[(attendance["イベントID"] == event_id) & (attendance["名前"] == name)]
                         if not row.empty:
-                            default = row.iloc[0]["出欠"]
+                            default_status = row.iloc[0]["出欠"]
+                            if "配車" in row.columns:
+                                default_car = str(row.iloc[0].get("配車", "") or "")
 
-                    c1, c2 = st.columns([1, 3])
-                    c1.write(name)
-                    status = c2.radio(
-                        "",
-                        ["未定", "出席", "欠席"],
-                        index=["未定","出席","欠席"].index(default),
-                        horizontal=True,
-                        key=f"{event_id}_{name}",
-                        label_visibility="collapsed"
-                    )
+                    if haisha_flag2:
+                        c1, c2, c3 = st.columns([1, 3, 1])
+                        c1.write(name)
+                        status = c2.radio(
+                            "", ["未定", "出席", "欠席"],
+                            index=["未定","出席","欠席"].index(default_status),
+                            horizontal=True, key=f"{event_id}_{name}",
+                            label_visibility="collapsed"
+                        )
+                        car_val = int(default_car) if default_car.isdigit() else 1
+                        car_num = c3.number_input("号車", min_value=1, max_value=20, value=car_val,
+                                                  key=f"car_{event_id}_{name}", label_visibility="collapsed")
+                        haisha_dict[name] = car_num
+                    else:
+                        c1, c2 = st.columns([1, 3])
+                        c1.write(name)
+                        status = c2.radio(
+                            "", ["未定", "出席", "欠席"],
+                            index=["未定","出席","欠席"].index(default_status),
+                            horizontal=True, key=f"{event_id}_{name}",
+                            label_visibility="collapsed"
+                        )
 
                     status_dict[name] = status
 
                 if st.form_submit_button("保存"):
-                    save_attendance_bulk(event_id, status_dict)
+                    save_attendance_bulk(event_id, status_dict, haisha_dict if haisha_flag2 else None)
                     st.success("保存完了")
                     st.rerun()
 
