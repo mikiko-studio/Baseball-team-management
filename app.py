@@ -100,7 +100,7 @@ def send_line_message(message):
     return r.status_code == 200, r.text
 
 # Googleカレンダー追加URL生成
-def google_calendar_url(title, dt, start_str, end_str, location):
+def google_calendar_url(title, dt, start_str, end_str, location, details=""):
     from urllib.parse import quote
     try:
         sh, sm = [int(x) for x in start_str.split(":")]
@@ -109,7 +109,10 @@ def google_calendar_url(title, dt, start_str, end_str, location):
         return ""
     start = f"{dt.strftime('%Y%m%d')}T{sh:02d}{sm:02d}00"
     end   = f"{dt.strftime('%Y%m%d')}T{eh:02d}{em:02d}00"
-    return f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={quote(title)}&dates={start}/{end}&location={quote(location)}"
+    url = f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={quote(title)}&dates={start}/{end}&location={quote(location)}"
+    if details:
+        url += f"&details={quote(details)}"
+    return url
 
 st.set_page_config(layout="wide")
 st.title("⚾ 少年野球チーム管理アプリ（カレンダー＋出欠一体型）")
@@ -150,7 +153,7 @@ with col_left:
             else:
                 icon = "⚪"
             wd = WEEKDAYS[e['日付'].weekday()]
-            label = f"{icon} {e['日付'].strftime('%m/%d')}({wd}) {e['タイトル']} {e['開始時間']}〜{e['終了時間']} {e['場所']}"
+            label = f"{icon} {e['日付'].strftime('%m/%d')}({wd}) {e['種類']} {e['開始時間']}〜{e['終了時間']} {e['場所']}"
 
             if st.button(label, key=f"list_{e['イベントID']}"):
                 st.session_state["selected_event_id"] = int(e["イベントID"])
@@ -260,11 +263,11 @@ with col_right:
             event_row = events[events["イベントID"] == event_id].iloc[0]
 
             wd = WEEKDAYS[event_row['日付'].weekday()]
-            st.write(f"📅 {event_row['日付'].strftime('%m/%d')}({wd}) {event_row['タイトル']}")
-            st.write(f"📍 {event_row['場所']} / {event_row['開始時間']}〜{event_row['終了時間']}")
+            st.write(f"📅 {event_row['日付'].strftime('%m/%d')}({wd}) {event_row['種類']} {event_row['開始時間']}〜{event_row['終了時間']} {event_row['場所']}")
+            st.write(f"📝 {event_row['タイトル']}")
 
             btn_col1, btn_col2 = st.columns(2)
-            gcal = google_calendar_url(event_row['タイトル'], event_row['日付'], event_row['開始時間'], event_row['終了時間'], event_row['場所'])
+            gcal = google_calendar_url(event_row['種類'], event_row['日付'], event_row['開始時間'], event_row['終了時間'], event_row['場所'], event_row['タイトル'])
             if gcal:
                 btn_col1.link_button("📆 Googleカレンダーに追加", gcal)
             if btn_col2.button("📣 LINEに出欠状況を通知", key="line_notify"):
