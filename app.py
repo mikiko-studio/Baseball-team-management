@@ -183,6 +183,11 @@ events = load_events()
 try:
     _log = load_change_log()
     _week_ago = pd.Timestamp.now() - pd.Timedelta(days=7)
+    with st.expander("🔍 ログデバッグ", expanded=False):
+        st.write(f"now={pd.Timestamp.now()}, week_ago={_week_ago}")
+        st.write(f"log rows={len(_log)}")
+        if not _log.empty:
+            st.dataframe(_log)
     if not _log.empty and "日時dt" in _log.columns:
         _recent = _log[_log["日時dt"] >= _week_ago].sort_values("日時dt", ascending=False)
         if not _recent.empty:
