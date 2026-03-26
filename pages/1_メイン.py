@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import date
 from utils import (load_players, load_events, load_attendance, load_staff,
                    load_change_log, save_attendance_bulk, google_calendar_url,
-                   WEEKDAYS)
+                   compute_car_allocation, WEEKDAYS)
 
 ROLES = ["", "スコアラー", "審判", "主審", "観覧のみ"]
 
@@ -63,7 +63,10 @@ with col_left:
         for _, e in events_sorted.iterrows():
             icon = "🔴" if e["種類"] == "試合" else "🔵" if e["種類"] == "練習" else "⚪"
             wd = WEEKDAYS[e["日付"].weekday()]
-            label = f"{icon} {e['日付'].strftime('%m/%d')}({wd}) {e['種類']} {e['開始時間']}〜{e['終了時間']} {e['場所']}"
+            _haisha = e.get("配車", False)
+            if isinstance(_haisha, str): _haisha = _haisha.upper() in ("TRUE", "あり")
+            car_icon = " 🚗" if _haisha else ""
+            label = f"{icon} {e['日付'].strftime('%m/%d')}({wd}) {e['種類']} {e['開始時間']}〜{e['終了時間']} {e['場所']}{car_icon}"
             is_selected = st.session_state.get("selected_event_id") == int(e["イベントID"])
             if st.button(label, key=f"list_{e['イベントID']}", type="primary" if is_selected else "secondary"):
                 st.session_state["selected_event_id"] = int(e["イベントID"])
@@ -154,23 +157,25 @@ with col_right:
             }
 
         auto_car_map = {}
+        car_warnings = []
         use_auto = True
         if haisha_flag:
             player_names = players["名前"].tolist() if not players.empty else []
             staff_names  = staff_df["名前"].tolist() if not staff_df.empty and "名前" in staff_df.columns else []
             all_names    = player_names + staff_names
 
-            # 車出し可能な出席者を先頭に
-            drivers    = [n for n in all_names if get_saved(n)["出欠"] == "出席" and get_saved(n)["車出し"]]
-            non_drivers = [n for n in all_names if get_saved(n)["出欠"] == "出席" and not get_saved(n)["車出し"]]
-            ordered_attend = drivers + non_drivers
-            auto_car_map = {n: (i // 4) + 1 for i, n in enumerate(ordered_attend)}
+            attend_names = [n for n in all_names if get_saved(n)["出欠"] == "出席"]
+            drivers_set  = {n for n in attend_names if get_saved(n)["車出し"]}
+            auto_car_map, car_warnings = compute_car_allocation(attend_names, drivers_set, max_per_car=5)
 
             if not attendance.empty:
                 _ev_att = attendance[(attendance["イベントID"] == event_id) & (attendance["出欠"] == "出席")]
                 if not _ev_att.empty and "配車" in _ev_att.columns:
                     if _ev_att["配車"].astype(str).str.strip().nunique() > 1:
                         use_auto = False
+
+        for w in car_warnings:
+            st.warning(w)
 
         # ---- 入力フォーム ----
         with st.form("attend"):
