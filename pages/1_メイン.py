@@ -170,120 +170,122 @@ with col_right:
         for w in car_warnings:
             st.warning(w)
 
-        # ---- 入力フォーム ----
-        with st.form("attend"):
+        # ---- 入力（st.form なし・リアクティブ） ----
+        player_names = players["名前"].tolist() if not players.empty else []
+        staff_names  = (staff_df["名前"].tolist()
+                        if not staff_df.empty and "名前" in staff_df.columns else [])
+
+        def cur_status(name):
+            saved = get_saved(name)["出欠"]
+            return st.session_state.get(f"st_{event_id}_{name}", saved)
+
+        def render_player_row(name):
+            saved    = get_saved(name)
+            d_status = saved["出欠"]
+            is_att   = cur_status(name) == "出席"
+
+            if haisha_flag and is_att:
+                c1, c2, c3 = st.columns([2, 4, 1])
+            else:
+                c1, c2 = st.columns([1, 3])
+
+            c1.write(name)
+            c2.radio("", ["未定", "出席", "欠席"],
+                     index=["未定", "出席", "欠席"].index(d_status),
+                     horizontal=True, key=f"st_{event_id}_{name}",
+                     label_visibility="collapsed")
+            if haisha_flag and is_att:
+                c3.number_input("号車", min_value=1, max_value=20,
+                                value=auto_car_map.get(name, 1),
+                                key=f"car_{event_id}_{name}",
+                                label_visibility="collapsed")
+
+        def render_staff_row(name):
+            saved     = get_saved(name)
+            d_status  = saved["出欠"]
+            d_sharsha = saved["車出し"]
+            d_role    = saved["役割"] if saved["役割"] in ROLES else ""
+            is_att    = cur_status(name) == "出席"
+
+            # 列レイアウト：出席時のみ号車・車出し表示
+            if haisha_flag and is_att and is_game:
+                c1, c2, c3, c4, c5 = st.columns([2, 4, 1, 1, 2])
+            elif haisha_flag and is_att:
+                c1, c2, c3, c4 = st.columns([2, 4, 1, 1])
+            elif is_game:
+                c1, c2, c3 = st.columns([2, 4, 2])
+            else:
+                c1, c2 = st.columns([1, 3])
+
+            c1.write(name)
+            c2.radio("", ["未定", "出席", "欠席"],
+                     index=["未定", "出席", "欠席"].index(d_status),
+                     horizontal=True, key=f"st_{event_id}_{name}",
+                     label_visibility="collapsed")
+            if haisha_flag and is_att:
+                c3.checkbox("🚗", value=d_sharsha,
+                            key=f"sh_{event_id}_{name}", help="車出し可")
+                c4.number_input("号車", min_value=1, max_value=20,
+                                value=auto_car_map.get(name, 1),
+                                key=f"car_{event_id}_{name}",
+                                label_visibility="collapsed")
+                if is_game:
+                    c5.selectbox("", ROLES,
+                                 index=ROLES.index(d_role) if d_role in ROLES else 0,
+                                 key=f"role_{event_id}_{name}",
+                                 label_visibility="collapsed")
+            elif is_game:
+                c3.selectbox("", ROLES,
+                             index=ROLES.index(d_role) if d_role in ROLES else 0,
+                             key=f"role_{event_id}_{name}",
+                             label_visibility="collapsed")
+
+        # 選手セクション
+        st.markdown("**⚾ 選手**")
+        for name in player_names:
+            render_player_row(name)
+
+        # 運営セクション
+        if staff_names:
+            st.markdown("**🏅 運営**")
+            for name in staff_names:
+                render_staff_row(name)
+
+        if st.button("保存", type="primary"):
             status_dict      = {}
             haisha_dict      = {}
             member_type_dict = {}
             sharsha_dict     = {}
             role_dict        = {}
 
-            def render_player_row(name):
-                """選手行：出欠 (+号車)"""
-                saved    = get_saved(name)
-                d_status = saved["出欠"]
-                d_car    = saved["配車"]
-
-                if haisha_flag:
-                    c1, c2, c3 = st.columns([2, 4, 1])
-                else:
-                    c1, c2 = st.columns([1, 3])
-
-                c1.write(name)
-                status = c2.radio("", ["未定", "出席", "欠席"],
-                                  index=["未定", "出席", "欠席"].index(d_status),
-                                  horizontal=True, key=f"{event_id}_{name}",
-                                  label_visibility="collapsed")
-                if haisha_flag:
-                    car_val = auto_car_map.get(name, 1)
-                    car_num = c3.number_input("号車", min_value=1, max_value=20, value=car_val,
-                                              key=f"car_{event_id}_{name}",
-                                              label_visibility="collapsed")
-                    haisha_dict[name] = car_num
-
-                status_dict[name]      = status
+            for name in player_names:
+                st_val = st.session_state.get(f"st_{event_id}_{name}", get_saved(name)["出欠"])
+                status_dict[name]      = st_val
                 member_type_dict[name] = "選手"
+                if haisha_flag and st_val == "出席":
+                    haisha_dict[name] = st.session_state.get(f"car_{event_id}_{name}",
+                                                             auto_car_map.get(name, 1))
 
-            def render_staff_row(name):
-                """運営行：出欠 (+車出し +号車 +役割)"""
-                saved     = get_saved(name)
-                d_status  = saved["出欠"]
-                d_car     = saved["配車"]
-                d_sharsha = saved["車出し"]
-                d_role    = saved["役割"] if saved["役割"] in ROLES else ""
-
-                if haisha_flag and is_game:
-                    c1, c2, c3, c4, c5 = st.columns([2, 4, 1, 1, 2])
-                elif haisha_flag:
-                    c1, c2, c3, c4 = st.columns([2, 4, 1, 1])
-                elif is_game:
-                    c1, c2, c3 = st.columns([2, 4, 2])
-                else:
-                    c1, c2 = st.columns([1, 3])
-
-                c1.write(name)
-                status = c2.radio("", ["未定", "出席", "欠席"],
-                                  index=["未定", "出席", "欠席"].index(d_status),
-                                  horizontal=True, key=f"{event_id}_{name}",
-                                  label_visibility="collapsed")
-                if haisha_flag:
-                    sharsha = c3.checkbox("🚗", value=d_sharsha,
-                                          key=f"sh_{event_id}_{name}", help="車出し可")
-                    car_val = auto_car_map.get(name, 1)
-                    car_num = c4.number_input("号車", min_value=1, max_value=20, value=car_val,
-                                              key=f"car_{event_id}_{name}",
-                                              label_visibility="collapsed")
-                    haisha_dict[name]  = car_num
-                    sharsha_dict[name] = sharsha
-                    if is_game:
-                        role = c5.selectbox("", ROLES,
-                                            index=ROLES.index(d_role) if d_role in ROLES else 0,
-                                            key=f"role_{event_id}_{name}",
-                                            label_visibility="collapsed")
-                        role_dict[name] = role
-                elif is_game:
-                    role = c3.selectbox("", ROLES,
-                                        index=ROLES.index(d_role) if d_role in ROLES else 0,
-                                        key=f"role_{event_id}_{name}",
-                                        label_visibility="collapsed")
-                    role_dict[name] = role
-
-                status_dict[name]      = status
+            for name in staff_names:
+                st_val = st.session_state.get(f"st_{event_id}_{name}", get_saved(name)["出欠"])
+                status_dict[name]      = st_val
                 member_type_dict[name] = "運営"
+                if haisha_flag and st_val == "出席":
+                    haisha_dict[name]  = st.session_state.get(f"car_{event_id}_{name}",
+                                                              auto_car_map.get(name, 1))
+                    sharsha_dict[name] = st.session_state.get(f"sh_{event_id}_{name}", False)
+                if is_game and st_val == "出席":
+                    role_dict[name] = st.session_state.get(f"role_{event_id}_{name}", "")
 
-            # 選手セクション
-            st.markdown("**⚾ 選手**")
-            if haisha_flag:
-                h1, h2, h3 = st.columns([2, 4, 1])
-                h3.caption("号車")
-            for _, p in players.iterrows():
-                render_player_row(p["名前"])
-
-            # 運営セクション
-            if not staff_df.empty and "名前" in staff_df.columns:
-                st.markdown("**🏅 運営**")
-                if haisha_flag and is_game:
-                    h1, h2, h3, h4, h5 = st.columns([2, 4, 1, 1, 2])
-                    h3.caption("車出し"); h4.caption("号車"); h5.caption("役割")
-                elif haisha_flag:
-                    h1, h2, h3, h4 = st.columns([2, 4, 1, 1])
-                    h3.caption("車出し"); h4.caption("号車")
-                elif is_game:
-                    h1, h2, h3 = st.columns([2, 4, 2])
-                    h3.caption("役割")
-                for _, s in staff_df.iterrows():
-                    render_staff_row(s["名前"])
-
-            if st.form_submit_button("保存"):
-                _wd    = WEEKDAYS[event_row["日付"].weekday()]
-                _einfo = f"{event_row['日付'].strftime('%m/%d')}({_wd}) {event_row['種類']}"
-                save_attendance_bulk(
-                    event_id, status_dict,
-                    haisha_dict      if haisha_flag else None,
-                    _einfo,
-                    member_type_dict,
-                    sharsha_dict     if haisha_flag else None,
-                    role_dict        if is_game     else None,
-                )
-                st.success("保存完了")
-                st.rerun()
+            _wd    = WEEKDAYS[event_row["日付"].weekday()]
+            _einfo = f"{event_row['日付'].strftime('%m/%d')}({_wd}) {event_row['種類']}"
+            save_attendance_bulk(
+                event_id, status_dict,
+                haisha_dict      if haisha_flag else None,
+                _einfo,
+                member_type_dict,
+                sharsha_dict     if haisha_flag else None,
+                role_dict        if is_game     else None,
+            )
+            st.success("保存完了")
+            st.rerun()
