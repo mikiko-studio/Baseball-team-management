@@ -27,21 +27,18 @@ st.markdown("### ➕ イベント追加")
 events = load_events()
 today  = pd.Timestamp(date.today())
 
-# 種類をフォームの外で選択（条件分岐のため）
-add_kind = st.selectbox("種類", KINDS, key="add_kind_sel")
-
 with st.form("event_form"):
-    c1, c2 = st.columns(2)
-    d     = c1.date_input("日付", date.today())
+    d      = st.date_input("日付", date.today())
+    add_kind = st.selectbox("種類", KINDS, key="add_kind_form")
     c3, c4 = st.columns(2)
-    start = c3.time_input("開始", value=time(9, 0))
-    end   = c4.time_input("終了", value=time(12, 0))
-    loc   = st.text_input("場所")
-    tanto = st.text_input("担当班")
-    memo  = st.text_input("メモ")
+    start  = c3.time_input("開始", value=time(9, 0))
+    end    = c4.time_input("終了", value=time(12, 0))
+    loc    = st.text_input("場所")
+    tanto  = st.text_input("担当班")
+    memo   = st.text_area("メモ", height=80)
     haisha = st.checkbox("配車あり", value=False)
 
-    if add_kind == "練習":
+    if add_kind == "試合":
         st.markdown("**役割分担**")
         rc1, rc2, rc3 = st.columns(3)
         scorer    = rc1.checkbox("スコアラー", key="add_scorer")
@@ -51,7 +48,6 @@ with st.form("event_form"):
         scorer = referee = h_referee = False
 
     if st.form_submit_button("登録"):
-        t  = st.session_state.get("add_kind_sel", "練習")
         ws = get_ws(EVENT_SHEET)
         load_events.clear()
         events_df = load_events()
@@ -60,12 +56,12 @@ with st.form("event_form"):
         append_row_by_header(ws, {
             "イベントID": new_id, "日付": str(d),
             "開始時間": start.strftime("%H:%M"), "終了時間": end.strftime("%H:%M"),
-            "種類": t, "場所": loc, "担当班": tanto, "配車": haisha,
+            "種類": add_kind, "場所": loc, "担当班": tanto, "配車": haisha,
             "メモ": memo, "更新日時": ns,
             "スコアラー": scorer, "審判": referee, "主審": h_referee,
         })
         _wd    = WEEKDAYS[pd.Timestamp(d).weekday()]
-        _einfo = f"{d.strftime('%m/%d')}({_wd}) {t}"
+        _einfo = f"{d.strftime('%m/%d')}({_wd}) {add_kind}"
         write_change_log([[ns, "イベント", _einfo, "新規追加", "",
                            f"{loc} {start.strftime('%H:%M')}〜{end.strftime('%H:%M')}"]])
         load_events.clear()
@@ -111,11 +107,11 @@ else:
                 eend   = ec4.time_input("終了", value=ee)
                 eloc   = st.text_input("場所",   value=_s(er["場所"]))
                 etanto = st.text_input("担当班", value=_s(er.get("担当班", "")))
-                ememo  = st.text_input("メモ",   value=_s(er.get("メモ", "")))
+                ememo  = st.text_area("メモ", value=_s(er.get("メモ", "")), height=80)
                 haisha_val = _bool(er.get("配車", False))
                 ehaisha    = st.checkbox("配車あり", value=haisha_val)
 
-                if et == "練習":
+                if et == "試合":
                     st.markdown("**役割分担**")
                     rc1, rc2, rc3 = st.columns(3)
                     scorer_val    = _bool(er.get("スコアラー", False))
