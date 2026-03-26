@@ -158,7 +158,6 @@ with col_right:
 
         auto_car_map = {}
         car_warnings = []
-        use_auto = True
         if haisha_flag:
             player_names = players["名前"].tolist() if not players.empty else []
             staff_names  = staff_df["名前"].tolist() if not staff_df.empty and "名前" in staff_df.columns else []
@@ -167,12 +166,6 @@ with col_right:
             attend_names = [n for n in all_names if get_saved(n)["出欠"] == "出席"]
             drivers_set  = {n for n in attend_names if get_saved(n)["車出し"]}
             auto_car_map, car_warnings = compute_car_allocation(attend_names, drivers_set, max_per_car=5)
-
-            if not attendance.empty:
-                _ev_att = attendance[(attendance["イベントID"] == event_id) & (attendance["出欠"] == "出席")]
-                if not _ev_att.empty and "配車" in _ev_att.columns:
-                    if _ev_att["配車"].astype(str).str.strip().nunique() > 1:
-                        use_auto = False
 
         for w in car_warnings:
             st.warning(w)
@@ -202,8 +195,7 @@ with col_right:
                                   horizontal=True, key=f"{event_id}_{name}",
                                   label_visibility="collapsed")
                 if haisha_flag:
-                    car_val = (int(d_car) if (not use_auto and d_car.isdigit())
-                               else auto_car_map.get(name, 1))
+                    car_val = auto_car_map.get(name, 1)
                     car_num = c3.number_input("号車", min_value=1, max_value=20, value=car_val,
                                               key=f"car_{event_id}_{name}",
                                               label_visibility="collapsed")
@@ -237,8 +229,7 @@ with col_right:
                 if haisha_flag:
                     sharsha = c3.checkbox("🚗", value=d_sharsha,
                                           key=f"sh_{event_id}_{name}", help="車出し可")
-                    car_val = (int(d_car) if (not use_auto and d_car.isdigit())
-                               else auto_car_map.get(name, 1))
+                    car_val = auto_car_map.get(name, 1)
                     car_num = c4.number_input("号車", min_value=1, max_value=20, value=car_val,
                                               key=f"car_{event_id}_{name}",
                                               label_visibility="collapsed")

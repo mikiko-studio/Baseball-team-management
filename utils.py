@@ -178,9 +178,10 @@ def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info="",
 
 def compute_car_allocation(attend_names, drivers_set, max_per_car=5):
     """
-    attend_names : 出席者リスト（順番が優先度）
+    attend_names : 出席者リスト
     drivers_set  : 車出し可能な名前の集合
     Returns: (car_map {name: car_no}, warnings [str])
+    均等分配：各車に1名ドライバー、残りを人数が少ない車から順に割り振る
     """
     if not attend_names:
         return {}, []
@@ -191,35 +192,32 @@ def compute_car_allocation(attend_names, drivers_set, max_per_car=5):
     car_map     = {}
 
     if not drivers:
-        # ドライバーなし → 5名ずつグループ化して警告
         car_map = {n: (i // max_per_car) + 1 for i, n in enumerate(attend_names)}
         n_cars  = (len(attend_names) + max_per_car - 1) // max_per_car
         warnings.append(f"⚠️ 車出し可能なメンバーがいません（{n_cars}台分必要）")
         return car_map, warnings
 
-    # 各ドライバーに1台割り当て
+    # 各ドライバーに1台
     car_counts = {}
     for i, d in enumerate(drivers):
-        car_map[d]    = i + 1
+        car_map[d]       = i + 1
         car_counts[i + 1] = 1
 
-    # 非ドライバーを順番に詰める
+    # 非ドライバーを「最も人数が少ない車」へ均等分配
     overflow = []
     for passenger in non_drivers:
-        placed = False
-        for car_n in sorted(car_counts):
-            if car_counts[car_n] < max_per_car:
-                car_map[passenger]  = car_n
-                car_counts[car_n]  += 1
-                placed = True
-                break
-        if not placed:
+        available = [(cnt, car_n) for car_n, cnt in car_counts.items() if cnt < max_per_car]
+        if available:
+            _, car_n = min(available)          # 最少人数の車を選ぶ
+            car_map[passenger]  = car_n
+            car_counts[car_n]  += 1
+        else:
             overflow.append(passenger)
 
     if overflow:
-        extra_cars_needed = (len(overflow) + max_per_car - 1) // max_per_car
+        extra = (len(overflow) + max_per_car - 1) // max_per_car
         warnings.append(
-            f"⚠️ 車出し可能なメンバーが不足しています（あと{extra_cars_needed}名のドライバーが必要）"
+            f"⚠️ 車出し可能なメンバーが不足しています（あと{extra}名のドライバーが必要）"
         )
         next_car = max(car_counts) + 1
         for i, name in enumerate(overflow):
