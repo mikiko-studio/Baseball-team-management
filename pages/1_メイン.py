@@ -184,7 +184,8 @@ with col_right:
             d_status = saved["出欠"]
             is_att   = cur_status(name) == "出席"
 
-            if haisha_flag and is_att:
+            # 列レイアウトはイベント内で統一（is_attで変えない）
+            if haisha_flag:
                 c1, c2, c3 = st.columns([2, 4, 1])
             else:
                 c1, c2 = st.columns([1, 3])
@@ -194,11 +195,13 @@ with col_right:
                      index=["未定", "出席", "欠席"].index(d_status),
                      horizontal=True, key=f"st_{event_id}_{name}",
                      label_visibility="collapsed")
-            if haisha_flag and is_att:
-                c3.number_input("号車", min_value=1, max_value=20,
-                                value=auto_car_map.get(name, 1),
-                                key=f"car_{event_id}_{name}",
-                                label_visibility="collapsed")
+            if haisha_flag:
+                if is_att:
+                    c3.number_input("号車", min_value=1, max_value=20,
+                                    value=auto_car_map.get(name, 1),
+                                    key=f"car_{event_id}_{name}",
+                                    label_visibility="collapsed")
+                # 非出席時はc3を空欄（列位置固定のため列は確保済み）
 
         def render_staff_row(name):
             saved     = get_saved(name)
@@ -207,10 +210,10 @@ with col_right:
             d_role    = saved["役割"] if saved["役割"] in ROLES else ""
             is_att    = cur_status(name) == "出席"
 
-            # 列レイアウト：出席時のみ号車・車出し表示
-            if haisha_flag and is_att and is_game:
+            # 列レイアウトはイベント内で統一（is_attで変えない）
+            if haisha_flag and is_game:
                 c1, c2, c3, c4, c5 = st.columns([2, 4, 1, 1, 2])
-            elif haisha_flag and is_att:
+            elif haisha_flag:
                 c1, c2, c3, c4 = st.columns([2, 4, 1, 1])
             elif is_game:
                 c1, c2, c3 = st.columns([2, 4, 2])
@@ -222,13 +225,16 @@ with col_right:
                      index=["未定", "出席", "欠席"].index(d_status),
                      horizontal=True, key=f"st_{event_id}_{name}",
                      label_visibility="collapsed")
-            if haisha_flag and is_att:
-                c3.checkbox("🚗", value=d_sharsha,
-                            key=f"sh_{event_id}_{name}", help="車出し可")
+            if haisha_flag:
+                if is_att:
+                    c3.checkbox("🚗", value=d_sharsha,
+                                key=f"sh_{event_id}_{name}", help="車出し可")
+                # 非出席時はc3を空欄（列位置固定のため）
                 c4.number_input("号車", min_value=1, max_value=20,
                                 value=auto_car_map.get(name, 1),
                                 key=f"car_{event_id}_{name}",
-                                label_visibility="collapsed")
+                                label_visibility="collapsed",
+                                disabled=not is_att)
                 if is_game:
                     c5.selectbox("", ROLES,
                                  index=ROLES.index(d_role) if d_role in ROLES else 0,

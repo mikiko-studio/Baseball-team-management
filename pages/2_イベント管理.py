@@ -96,6 +96,9 @@ else:
         if edit_id:
             er = events[events["イベントID"] == edit_id].iloc[0]
 
+            # 日付を先に選択（種類の前に表示するためフォームの外へ）
+            ed = st.date_input("日付", value=er["日付"].date(), key="edit_date")
+
             # 種類をフォームの外で選択
             cur_kind  = er["種類"] if er["種類"] in KINDS else "練習"
             edit_kind = st.selectbox("種類", KINDS,
@@ -103,8 +106,6 @@ else:
                                      key="edit_kind_sel")
 
             with st.form("edit_form"):
-                ec1, ec2 = st.columns(2)
-                ed = ec1.date_input("日付", value=er["日付"].date())
                 ec3, ec4 = st.columns(2)
                 try:
                     es = time(*[int(x) for x in er["開始時間"].split(":")])
