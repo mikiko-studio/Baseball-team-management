@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, time
-from utils import (get_ws, load_events, write_change_log,
-                   now_jst, WEEKDAYS, EVENT_SHEET)
+from utils import (get_ws, load_events, write_change_log, now_jst,
+                   write_row_by_header, append_row_by_header,
+                   WEEKDAYS, EVENT_SHEET)
 
 KINDS = ["練習", "試合", "自主練習"]
 
@@ -56,8 +57,13 @@ with st.form("event_form"):
         events_df = load_events()
         new_id = 1 if events_df.empty else int(events_df["イベントID"].max()) + 1
         ns = now_jst()
-        ws.append_row([new_id, str(d), start.strftime("%H:%M"), end.strftime("%H:%M"),
-                       t, loc, tanto, haisha, memo, ns, scorer, referee, h_referee])
+        append_row_by_header(ws, {
+            "イベントID": new_id, "日付": str(d),
+            "開始時間": start.strftime("%H:%M"), "終了時間": end.strftime("%H:%M"),
+            "種類": t, "場所": loc, "担当班": tanto, "配車": haisha,
+            "メモ": memo, "更新日時": ns,
+            "スコアラー": scorer, "審判": referee, "主審": h_referee,
+        })
         _wd    = WEEKDAYS[pd.Timestamp(d).weekday()]
         _einfo = f"{d.strftime('%m/%d')}({_wd}) {t}"
         write_change_log([[ns, "イベント", _einfo, "新規追加", "",
@@ -137,10 +143,13 @@ else:
                     all_rows = ws.get_all_records()
                     for i, row in enumerate(all_rows, start=2):
                         if int(row["イベントID"]) == edit_id:
-                            ws.update(f"A{i}:M{i}", [[edit_id, str(ed),
-                                estart.strftime("%H:%M"), eend.strftime("%H:%M"),
-                                et, eloc, etanto, ehaisha, ememo, ns,
-                                escorer, ereferee, eh_referee]])
+                            write_row_by_header(ws, i, {
+                                "イベントID": edit_id, "日付": str(ed),
+                                "開始時間": estart.strftime("%H:%M"), "終了時間": eend.strftime("%H:%M"),
+                                "種類": et, "場所": eloc, "担当班": etanto, "配車": ehaisha,
+                                "メモ": ememo, "更新日時": ns,
+                                "スコアラー": escorer, "審判": ereferee, "主審": eh_referee,
+                            })
                             break
 
                     _wd    = WEEKDAYS[er["日付"].weekday()]

@@ -176,6 +176,21 @@ def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info="",
     write_change_log(log_entries)
 
 
+def write_row_by_header(ws, row_index, data_dict):
+    """ヘッダー行の列名を基準に指定行へ書き込む（列順不問）"""
+    headers = ws.row_values(1)
+    row_data = [str(data_dict.get(h, "")) for h in headers]
+    end_col = chr(ord("A") + len(headers) - 1)
+    ws.update(f"A{row_index}:{end_col}{row_index}", [row_data])
+
+
+def append_row_by_header(ws, data_dict):
+    """ヘッダー行の列名を基準に末尾へ追記する（列順不問）"""
+    headers = ws.row_values(1)
+    row_data = [str(data_dict.get(h, "")) for h in headers]
+    ws.append_row(row_data)
+
+
 def google_calendar_url(title, dt, start_str, end_str, location, details=""):
     from urllib.parse import quote
     try:
