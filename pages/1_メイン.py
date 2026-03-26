@@ -61,7 +61,7 @@ with col_left:
         today = pd.Timestamp(date.today())
         events_sorted = events[events["日付"] >= today].sort_values("日付")
         for _, e in events_sorted.iterrows():
-            icon = "🔴" if e["種類"] == "試合" else "🔵" if e["種類"] == "練習" else "⚪"
+            icon = "🔴" if e["種類"] == "試合" else "🔵" if e["種類"] == "練習" else "🟡" if e["種類"] == "派遣審判" else "⚪"
             wd = WEEKDAYS[e["日付"].weekday()]
             _haisha = e.get("配車", False)
             if isinstance(_haisha, str): _haisha = _haisha.upper() in ("TRUE", "あり")

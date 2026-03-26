@@ -5,7 +5,7 @@ from utils import (get_ws, load_events, write_change_log, now_jst,
                    write_row_by_header, append_row_by_header,
                    WEEKDAYS, EVENT_SHEET)
 
-KINDS = ["練習", "試合", "自主練習"]
+KINDS = ["練習", "試合", "自主練習", "派遣審判"]
 
 def _bool(v):
     if isinstance(v, bool): return v
