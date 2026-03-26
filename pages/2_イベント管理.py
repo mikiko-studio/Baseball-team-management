@@ -96,16 +96,11 @@ else:
         if edit_id:
             er = events[events["イベントID"] == edit_id].iloc[0]
 
-            # 日付を先に選択（種類の前に表示するためフォームの外へ）
-            ed = st.date_input("日付", value=er["日付"].date(), key="edit_date")
-
-            # 種類をフォームの外で選択
-            cur_kind  = er["種類"] if er["種類"] in KINDS else "練習"
-            edit_kind = st.selectbox("種類", KINDS,
-                                     index=KINDS.index(cur_kind),
-                                     key="edit_kind_sel")
+            cur_kind = er["種類"] if er["種類"] in KINDS else "練習"
 
             with st.form("edit_form"):
+                ed = st.date_input("日付", value=er["日付"].date())
+                et = st.selectbox("種類", KINDS, index=KINDS.index(cur_kind))
                 ec3, ec4 = st.columns(2)
                 try:
                     es = time(*[int(x) for x in er["開始時間"].split(":")])
@@ -120,7 +115,6 @@ else:
                 haisha_val = _bool(er.get("配車", False))
                 ehaisha    = st.checkbox("配車あり", value=haisha_val)
 
-                et = st.session_state.get("edit_kind_sel", cur_kind)
                 if et == "練習":
                     st.markdown("**役割分担**")
                     rc1, rc2, rc3 = st.columns(3)
@@ -138,7 +132,6 @@ else:
                 del_btn  = col_del.form_submit_button("🗑️ 削除", type="secondary")
 
                 if save_btn:
-                    et  = st.session_state.get("edit_kind_sel", cur_kind)
                     ws  = get_ws(EVENT_SHEET)
                     ns  = now_jst()
                     all_rows = ws.get_all_records()
