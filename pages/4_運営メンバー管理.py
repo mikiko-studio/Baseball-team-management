@@ -56,21 +56,22 @@ if not staff_df.empty:
         with st.form("edit_staff"):
             ec1, ec2, ec3 = st.columns([2, 2, 2])
             _role_opts = [""] + STAFF_ROLES
-            new_name = ec1.text_input("名前", value=sel_row["名前"])
-            new_role = ec2.selectbox("役割", _role_opts,
-                                     index=_role_opts.index(sel_row["役割"])
-                                     if sel_row["役割"] in _role_opts else 0)
-            new_memo = ec3.text_input("メモ", value=str(sel_row.get("メモ", "") or ""))
+            new_name = ec1.text_input("名前")
+            new_role = ec2.selectbox("役割", _role_opts)
+            new_memo = ec3.text_input("メモ")
             cs, cd = st.columns(2)
             save_btn = cs.form_submit_button("💾 保存")
             del_btn  = cd.form_submit_button("🗑️ 削除", type="secondary")
 
             if save_btn:
+                save_name = new_name  if new_name  else sel_row["名前"]
+                save_role = new_role  if new_role  else sel_row["役割"]
+                save_memo = new_memo  if new_memo  else str(sel_row.get("メモ", "") or "")
                 ws       = ensure_staff_ws()
                 all_rows = ws.get_all_values()
                 for i, row in enumerate(all_rows, start=1):
                     if row and row[0] == sel_name:
-                        ws.update(f"A{i}:C{i}", [[new_name, new_role, new_memo]])
+                        ws.update(f"A{i}:C{i}", [[save_name, save_role, save_memo]])
                         break
                 st.success("更新しました")
                 st.rerun()
