@@ -244,11 +244,14 @@ with col_right:
                              key=f"role_{event_id}_{name}",
                              label_visibility="collapsed")
 
-        # 選手セクション
-        with st.container(border=True):
-            st.markdown("**⚾ 選手**")
-            for name in player_names:
-                render_player_row(name)
+        is_haken = event_row["種類"] == "派遣審判"
+
+        # 選手セクション（派遣審判の場合は非表示）
+        if not is_haken:
+            with st.container(border=True):
+                st.markdown("**⚾ 選手**")
+                for name in player_names:
+                    render_player_row(name)
 
         # 運営セクション
         if staff_names:
@@ -264,7 +267,7 @@ with col_right:
             sharsha_dict     = {}
             role_dict        = {}
 
-            for name in player_names:
+            for name in ([] if is_haken else player_names):
                 st_val = st.session_state.get(f"st_{event_id}_{name}", get_saved(name)["出欠"])
                 status_dict[name]      = st_val
                 member_type_dict[name] = "選手"
