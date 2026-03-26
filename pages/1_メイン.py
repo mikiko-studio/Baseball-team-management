@@ -227,14 +227,12 @@ with col_right:
                      label_visibility="collapsed")
             if haisha_flag:
                 if is_att:
-                    c3.checkbox("🚗", value=d_sharsha,
-                                key=f"sh_{event_id}_{name}", help="車出し可")
-                # 非出席時はc3を空欄（列位置固定のため）
-                c4.number_input("号車", min_value=1, max_value=20,
-                                value=auto_car_map.get(name, 1),
-                                key=f"car_{event_id}_{name}",
-                                label_visibility="collapsed",
-                                disabled=not is_att)
+                    c3.checkbox("🚗出します", value=d_sharsha,
+                                key=f"sh_{event_id}_{name}")
+                    c4.number_input("号車", min_value=1, max_value=20,
+                                    value=auto_car_map.get(name, 1),
+                                    key=f"car_{event_id}_{name}",
+                                    label_visibility="collapsed")
                 if is_game:
                     c5.selectbox("", ROLES,
                                  index=ROLES.index(d_role) if d_role in ROLES else 0,
@@ -247,15 +245,17 @@ with col_right:
                              label_visibility="collapsed")
 
         # 選手セクション
-        st.markdown("**⚾ 選手**")
-        for name in player_names:
-            render_player_row(name)
+        with st.container(border=True):
+            st.markdown("**⚾ 選手**")
+            for name in player_names:
+                render_player_row(name)
 
         # 運営セクション
         if staff_names:
-            st.markdown("**🏅 運営**")
-            for name in staff_names:
-                render_staff_row(name)
+            with st.container(border=True):
+                st.markdown("**🏅 運営**")
+                for name in staff_names:
+                    render_staff_row(name)
 
         if st.button("保存", type="primary"):
             status_dict      = {}
