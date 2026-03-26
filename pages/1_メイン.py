@@ -15,7 +15,12 @@ st.markdown("""
 
 st.markdown("""
 <style>
-div[data-testid="stButton"] button { text-align: left; justify-content: flex-start; }
+div[data-testid="stButton"] button,
+div[data-testid="stButton"] button p,
+div[data-testid="stButton"] button div {
+    text-align: left !important;
+    justify-content: flex-start !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
