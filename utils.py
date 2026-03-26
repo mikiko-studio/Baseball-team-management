@@ -156,6 +156,14 @@ def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info="",
                     df[c] = ""
             ws.append_rows(df[ATTEND_COLS].values.tolist())
 
+    # 保存時に配車を再割り振り（新規出席者を含む）
+    if haisha_dict is not None:
+        attend_ordered = [n for n, s in status_dict.items() if s == "出席"]
+        drivers_set    = {n for n in attend_ordered if (sharsha_dict or {}).get(n, False)}
+        new_car_map, _ = compute_car_allocation(attend_ordered, drivers_set, max_per_car=5)
+        for name in attend_ordered:
+            haisha_dict[name] = new_car_map.get(name, 1)
+
     rows = [
         [int(event_id), name, status,
          (haisha_dict      or {}).get(name, ""),
