@@ -18,7 +18,7 @@ with st.form("add_player"):
     submitted = col3.form_submit_button("追加")
 
     if submitted and name and grade:
-        append_row_by_header(get_ws(PLAYER_SHEET), {"名前": name, "学年": grade})
+        append_row_by_header(get_ws(PLAYER_SHEET), {"名前": name, "学年": grade}, sheet_name=PLAYER_SHEET)
         load_players.clear()
         st.success("登録OK")
         st.rerun()

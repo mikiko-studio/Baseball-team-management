@@ -56,7 +56,7 @@ with st.form("event_form"):
             "種類": add_kind, "場所": loc, "担当班": tanto, "配車": haisha,
             "メモ": memo, "更新日時": ns,
             "スコアラー": scorer, "審判": referee, "主審": h_referee,
-        })
+        }, sheet_name=EVENT_SHEET)
         _wd    = WEEKDAYS[pd.Timestamp(d).weekday()]
         _einfo = f"{d.strftime('%m/%d')}({_wd}) {add_kind}"
         write_change_log([[ns, "イベント", _einfo, "新規追加", "",
@@ -136,7 +136,7 @@ else:
                                 "種類": et, "場所": eloc, "担当班": etanto, "配車": ehaisha,
                                 "メモ": ememo, "更新日時": ns,
                                 "スコアラー": escorer, "審判": ereferee, "主審": eh_referee,
-                            })
+                            }, sheet_name=EVENT_SHEET)
                             break
 
                     _wd    = WEEKDAYS[er["日付"].weekday()]

@@ -1,23 +1,15 @@
 import streamlit as st
-import pandas as pd
-from utils import get_spreadsheet, STAFF_SHEET, append_row_by_header, write_row_by_header
+from utils import (get_spreadsheet, get_ws, load_staff,
+                   STAFF_SHEET, append_row_by_header, write_row_by_header)
 
 st.markdown("### 🏅 運営メンバー管理")
 
 STAFF_ROLES = ["監督", "コーチ", "マネージャー", "会計", "その他"]
 
 
-def load_staff():
-    try:
-        df = pd.DataFrame(get_spreadsheet().worksheet(STAFF_SHEET).get_all_records())
-        return df
-    except Exception:
-        return pd.DataFrame(columns=["名前", "役割", "メモ"])
-
-
 def ensure_staff_ws():
     try:
-        return get_spreadsheet().worksheet(STAFF_SHEET)
+        return get_ws(STAFF_SHEET)
     except Exception:
         ws = get_spreadsheet().add_worksheet(title=STAFF_SHEET, rows=200, cols=5)
         ws.append_row(["名前", "役割", "メモ"])
@@ -41,7 +33,8 @@ with st.form("add_staff"):
 
     if submitted and name and role:
         ws = ensure_staff_ws()
-        append_row_by_header(ws, {"名前": name, "役割": role, "メモ": memo})
+        append_row_by_header(ws, {"名前": name, "役割": role, "メモ": memo}, sheet_name=STAFF_SHEET)
+        load_staff.clear()
         st.success("登録OK")
         st.rerun()
 
@@ -74,8 +67,9 @@ if not staff_df.empty:
                     name_col = headers.index("名前") if "名前" in headers else 0
                     for i, row in enumerate(all_rows[1:], start=2):
                         if row and len(row) > name_col and row[name_col] == sel_name:
-                            write_row_by_header(ws, i, {"名前": save_name, "役割": save_role, "メモ": save_memo})
+                            write_row_by_header(ws, i, {"名前": save_name, "役割": save_role, "メモ": save_memo}, sheet_name=STAFF_SHEET)
                             break
+                load_staff.clear()
                 st.success("更新しました")
                 st.rerun()
 
@@ -89,5 +83,6 @@ if not staff_df.empty:
                         if row and len(row) > name_col and row[name_col] == sel_name:
                             ws.delete_rows(i)
                             break
+                load_staff.clear()
                 st.success(f"{sel_name} を削除しました")
                 st.rerun()

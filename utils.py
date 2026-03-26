@@ -86,6 +86,7 @@ def load_attendance():
     return df
 
 
+@st.cache_data(ttl=60)
 def load_change_log():
     vals = get_spreadsheet().worksheet(LOG_SHEET).get_all_values()
     if not vals:
@@ -102,10 +103,14 @@ def write_change_log(entries):
         return
     try:
         ws = get_spreadsheet().worksheet(LOG_SHEET)
-        vals = ws.get_all_values()
-        if not vals or vals[0][0] != "日時":
-            ws.insert_row(LOG_COLS, 1)
+        # ヘッダー確認は初回のみ（セッション内でフラグ管理して API 節約）
+        if not st.session_state.get("_log_header_ok"):
+            first = ws.row_values(1)
+            if not first or first[0] != "日時":
+                ws.insert_row(LOG_COLS, 1)
+            st.session_state["_log_header_ok"] = True
         ws.append_rows(entries)
+        load_change_log.clear()
     except Exception as e:
         st.warning(f"変更ログ書き込みエラー: {e}")
 
@@ -117,9 +122,10 @@ def now_jst():
 ATTEND_COLS = ["イベントID", "名前", "出欠", "配車", "種別", "車出し", "役割"]
 
 
+@st.cache_data(ttl=10)
 def load_staff():
     try:
-        df = pd.DataFrame(get_spreadsheet().worksheet(STAFF_SHEET).get_all_records())
+        df = pd.DataFrame(get_ws(STAFF_SHEET).get_all_records())
         return df
     except Exception:
         return pd.DataFrame(columns=["名前", "役割", "メモ"])
@@ -234,17 +240,23 @@ def compute_car_allocation(attend_names, drivers_set, max_per_car=5):
     return car_map, warnings
 
 
-def write_row_by_header(ws, row_index, data_dict):
+@st.cache_data(ttl=3600)
+def _sheet_headers(sheet_name: str) -> list:
+    """シートのヘッダー行をキャッシュ（列構成が変わらない前提）"""
+    return get_ws(sheet_name).row_values(1)
+
+
+def write_row_by_header(ws, row_index, data_dict, sheet_name: str = ""):
     """ヘッダー行の列名を基準に指定行へ書き込む（列順不問）"""
-    headers = ws.row_values(1)
+    headers = _sheet_headers(sheet_name) if sheet_name else ws.row_values(1)
     row_data = [str(data_dict.get(h, "")) for h in headers]
     end_col = chr(ord("A") + len(headers) - 1)
     ws.update(f"A{row_index}:{end_col}{row_index}", [row_data])
 
 
-def append_row_by_header(ws, data_dict):
+def append_row_by_header(ws, data_dict, sheet_name: str = ""):
     """ヘッダー行の列名を基準に末尾へ追記する（列順不問）"""
-    headers = ws.row_values(1)
+    headers = _sheet_headers(sheet_name) if sheet_name else ws.row_values(1)
     row_data = [str(data_dict.get(h, "")) for h in headers]
     ws.append_row(row_data)
 
