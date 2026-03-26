@@ -35,11 +35,11 @@ st.markdown("##### メンバー追加")
 with st.form("add_staff"):
     col1, col2, col3 = st.columns([2, 2, 2])
     name  = col1.text_input("名前")
-    role  = col2.selectbox("役割", STAFF_ROLES)
+    role  = col2.selectbox("役割", [""] + STAFF_ROLES)
     memo  = col3.text_input("メモ")
     submitted = st.form_submit_button("追加")
 
-    if submitted and name:
+    if submitted and name and role:
         ws = ensure_staff_ws()
         ws.append_row([name, role, memo])
         st.success("登録OK")
@@ -55,10 +55,11 @@ if not staff_df.empty:
     if sel_row is not None:
         with st.form("edit_staff"):
             ec1, ec2, ec3 = st.columns([2, 2, 2])
+            _role_opts = [""] + STAFF_ROLES
             new_name = ec1.text_input("名前", value=sel_row["名前"])
-            new_role = ec2.selectbox("役割", STAFF_ROLES,
-                                     index=STAFF_ROLES.index(sel_row["役割"])
-                                     if sel_row["役割"] in STAFF_ROLES else 0)
+            new_role = ec2.selectbox("役割", _role_opts,
+                                     index=_role_opts.index(sel_row["役割"])
+                                     if sel_row["役割"] in _role_opts else 0)
             new_memo = ec3.text_input("メモ", value=str(sel_row.get("メモ", "") or ""))
             cs, cd = st.columns(2)
             save_btn = cs.form_submit_button("💾 保存")

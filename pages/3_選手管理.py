@@ -14,10 +14,10 @@ st.markdown("##### 選手追加")
 with st.form("add_player"):
     col1, col2, col3 = st.columns([2, 2, 1])
     name      = col1.text_input("名前")
-    grade     = col2.selectbox("学年", GRADES)
+    grade     = col2.selectbox("学年", [""] + GRADES)
     submitted = col3.form_submit_button("追加")
 
-    if submitted and name:
+    if submitted and name and grade:
         get_ws(PLAYER_SHEET).append_row([name, grade])
         load_players.clear()
         st.success("登録OK")
