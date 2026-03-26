@@ -131,11 +131,11 @@ with col_right:
                             members = "、".join(
                                 f"{r['名前']}{driver_mark(r)}" for _, r in grp.iterrows()
                             )
-                            st.write(f"🚗 {car_num}号車: {members}")
+                            st.write(f"- {car_num}号車: {members}")
                     else:
                         names = attendees["名前"].tolist()
                         for i, group in enumerate([names[j:j+4] for j in range(0, len(names), 4)], 1):
-                            st.write(f"🚗 {i}号車: " + "、".join(group))
+                            st.write(f"- {i}号車: " + "、".join(group))
                 else:
                     st.write("✅ 出席: " + "、".join(attendees["名前"].tolist()))
             if not pending.empty:
