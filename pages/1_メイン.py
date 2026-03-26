@@ -60,17 +60,21 @@ with col_left:
     if not events.empty:
         today = pd.Timestamp(date.today())
         events_sorted = events[events["日付"] >= today].sort_values("日付")
-        for _, e in events_sorted.iterrows():
-            icon = "🔴" if e["種類"] == "試合" else "🔵" if e["種類"] == "練習" else "🟡" if e["種類"] == "派遣審判" else "⚪"
-            wd = WEEKDAYS[e["日付"].weekday()]
-            _haisha = e.get("配車", False)
-            if isinstance(_haisha, str): _haisha = _haisha.upper() in ("TRUE", "あり")
-            car_icon = " 🚗" if _haisha else ""
-            label = f"{icon} {e['日付'].strftime('%m/%d')}({wd}) {e['種類']} {e['開始時間']}〜{e['終了時間']} {e['場所']}{car_icon}"
-            is_selected = st.session_state.get("selected_event_id") == int(e["イベントID"])
-            if st.button(label, key=f"list_{e['イベントID']}", type="primary" if is_selected else "secondary"):
-                st.session_state["selected_event_id"] = int(e["イベントID"])
-                st.rerun()
+        for dt, group in events_sorted.groupby("日付", sort=True):
+            wd = WEEKDAYS[dt.weekday()]
+            c_date, c_ev = st.columns([1, 2])
+            c_date.markdown(f"**{dt.strftime('%m/%d')}**  \n({wd})")
+            for _, e in group.iterrows():
+                icon = "🔴" if e["種類"] == "試合" else "🔵" if e["種類"] == "練習" else "🟡" if e["種類"] == "派遣審判" else "⚪"
+                _haisha = e.get("配車", False)
+                if isinstance(_haisha, str): _haisha = _haisha.upper() in ("TRUE", "あり")
+                car_icon = " 🚗" if _haisha else ""
+                btn_label = f"{icon} {e['種類']} {e['開始時間']}〜{e['終了時間']} {e['場所']}{car_icon}"
+                is_selected = st.session_state.get("selected_event_id") == int(e["イベントID"])
+                if c_ev.button(btn_label, key=f"list_{e['イベントID']}", type="primary" if is_selected else "secondary", use_container_width=True):
+                    st.session_state["selected_event_id"] = int(e["イベントID"])
+                    st.rerun()
+            st.divider()
 
 # =========================
 # 右：出欠入力
