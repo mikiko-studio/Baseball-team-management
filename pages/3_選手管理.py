@@ -30,10 +30,13 @@ if not players_df.empty:
     if st.button("削除", type="secondary"):
         ws       = get_ws(PLAYER_SHEET)
         all_rows = ws.get_all_values()
-        for i, row in enumerate(all_rows, start=1):
-            if row and row[0] == del_name:
-                ws.delete_rows(i)
-                break
+        if all_rows:
+            headers  = all_rows[0]
+            name_col = headers.index("名前") if "名前" in headers else 0
+            for i, row in enumerate(all_rows[1:], start=2):
+                if row and len(row) > name_col and row[name_col] == del_name:
+                    ws.delete_rows(i)
+                    break
         load_players.clear()
         st.success(f"{del_name} を削除しました")
         st.rerun()

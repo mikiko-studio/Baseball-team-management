@@ -64,24 +64,30 @@ if not staff_df.empty:
             del_btn  = cd.form_submit_button("🗑️ 削除", type="secondary")
 
             if save_btn:
-                save_name = new_name  if new_name  else sel_row["名前"]
-                save_role = new_role  if new_role  else sel_row["役割"]
-                save_memo = new_memo  if new_memo  else str(sel_row.get("メモ", "") or "")
+                save_name = new_name if new_name else sel_row["名前"]
+                save_role = new_role if new_role else sel_row["役割"]
+                save_memo = new_memo if new_memo else str(sel_row.get("メモ", "") or "")
                 ws       = ensure_staff_ws()
                 all_rows = ws.get_all_values()
-                for i, row in enumerate(all_rows, start=1):
-                    if row and row[0] == sel_name:
-                        write_row_by_header(ws, i, {"名前": save_name, "役割": save_role, "メモ": save_memo})
-                        break
+                if all_rows:
+                    headers  = all_rows[0]
+                    name_col = headers.index("名前") if "名前" in headers else 0
+                    for i, row in enumerate(all_rows[1:], start=2):
+                        if row and len(row) > name_col and row[name_col] == sel_name:
+                            write_row_by_header(ws, i, {"名前": save_name, "役割": save_role, "メモ": save_memo})
+                            break
                 st.success("更新しました")
                 st.rerun()
 
             if del_btn:
                 ws       = ensure_staff_ws()
                 all_rows = ws.get_all_values()
-                for i, row in enumerate(all_rows, start=1):
-                    if row and row[0] == sel_name:
-                        ws.delete_rows(i)
-                        break
+                if all_rows:
+                    headers  = all_rows[0]
+                    name_col = headers.index("名前") if "名前" in headers else 0
+                    for i, row in enumerate(all_rows[1:], start=2):
+                        if row and len(row) > name_col and row[name_col] == sel_name:
+                            ws.delete_rows(i)
+                            break
                 st.success(f"{sel_name} を削除しました")
                 st.rerun()
