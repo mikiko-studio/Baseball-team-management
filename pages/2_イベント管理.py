@@ -38,14 +38,11 @@ with st.form("event_form"):
     memo   = st.text_area("メモ", height=80)
     haisha = st.checkbox("配車あり", value=False)
 
-    if add_kind == "試合":
-        st.markdown("**役割分担**")
-        rc1, rc2, rc3 = st.columns(3)
-        scorer    = rc1.checkbox("スコアラー", key="add_scorer")
-        referee   = rc2.checkbox("審判",       key="add_referee")
-        h_referee = rc3.checkbox("主審",       key="add_h_referee")
-    else:
-        scorer = referee = h_referee = False
+    st.markdown("**役割分担（試合の場合のみ選択）**")
+    rc1, rc2, rc3 = st.columns(3)
+    scorer    = rc1.checkbox("スコアラー", key="add_scorer")
+    referee   = rc2.checkbox("審判",       key="add_referee")
+    h_referee = rc3.checkbox("主審",       key="add_h_referee")
 
     if st.form_submit_button("登録"):
         ws = get_ws(EVENT_SHEET)
@@ -112,7 +109,7 @@ else:
                 ehaisha    = st.checkbox("配車あり", value=haisha_val)
 
                 if et == "試合":
-                    st.markdown("**役割分担**")
+                    st.markdown("**役割分担（試合の場合のみ選択）**")
                     rc1, rc2, rc3 = st.columns(3)
                     scorer_val    = _bool(er.get("スコアラー", False))
                     referee_val   = _bool(er.get("審判",       False))
