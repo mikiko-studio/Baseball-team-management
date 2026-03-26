@@ -114,7 +114,26 @@ def now_jst():
     return (pd.Timestamp.now() + pd.Timedelta(hours=9)).strftime("%Y-%m-%d %H:%M")
 
 
-def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info=""):
+ATTEND_COLS = ["イベントID", "名前", "出欠", "配車", "種別", "車出し", "役割"]
+
+
+def load_staff():
+    try:
+        df = pd.DataFrame(get_spreadsheet().worksheet(STAFF_SHEET).get_all_records())
+        return df
+    except Exception:
+        return pd.DataFrame(columns=["名前", "役割"])
+
+
+def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info="",
+                         member_type_dict=None, sharsha_dict=None, role_dict=None):
+    """
+    status_dict      : {name: 出欠}
+    haisha_dict      : {name: car_number}
+    member_type_dict : {name: "選手" or "運営"}
+    sharsha_dict     : {name: True/False}  車出し可否
+    role_dict        : {name: role_str}    役割（試合時）
+    """
     ws = get_ws(ATTEND_SHEET)
     load_attendance.clear()
     df = load_attendance()
@@ -125,25 +144,26 @@ def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info="")
         for _, r in ev_df.iterrows():
             old_status[r["名前"]] = r["出欠"]
 
+    # 他イベント分を残して書き直す
     if not df.empty:
         df = df.drop_duplicates(subset=["イベントID", "名前"], keep="last")
         df = df[df["イベントID"] != event_id]
         ws.clear()
-        ws.append_row(["イベントID", "名前", "出欠", "配車"])
+        ws.append_row(ATTEND_COLS)
         if not df.empty:
-            if "配車" not in df.columns:
-                df["配車"] = ""
-            ws.append_rows(df[["イベントID","名前","出欠","配車"]].values.tolist())
+            for c in ATTEND_COLS:
+                if c not in df.columns:
+                    df[c] = ""
+            ws.append_rows(df[ATTEND_COLS].values.tolist())
 
-    if haisha_dict:
-        attend_names = [n for n, s in status_dict.items() if s == "出席"]
-        auto_car = {n: (i // 4) + 1 for i, n in enumerate(attend_names)}
-        for name in attend_names:
-            if not str(haisha_dict.get(name, "")).isdigit():
-                haisha_dict[name] = auto_car[name]
-
-    rows = [[int(event_id), name, status, (haisha_dict or {}).get(name, "")]
-            for name, status in status_dict.items()]
+    rows = [
+        [int(event_id), name, status,
+         (haisha_dict      or {}).get(name, ""),
+         (member_type_dict or {}).get(name, "選手"),
+         (sharsha_dict     or {}).get(name, False),
+         (role_dict        or {}).get(name, "")]
+        for name, status in status_dict.items()
+    ]
     ws.append_rows(rows)
     load_attendance.clear()
 
