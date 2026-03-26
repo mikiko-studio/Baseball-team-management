@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import get_spreadsheet, STAFF_SHEET
+from utils import get_spreadsheet, STAFF_SHEET, append_row_by_header, write_row_by_header
 
 st.markdown("### 🏅 運営メンバー管理")
 
@@ -41,7 +41,7 @@ with st.form("add_staff"):
 
     if submitted and name and role:
         ws = ensure_staff_ws()
-        ws.append_row([name, role, memo])
+        append_row_by_header(ws, {"名前": name, "役割": role, "メモ": memo})
         st.success("登録OK")
         st.rerun()
 
@@ -71,7 +71,7 @@ if not staff_df.empty:
                 all_rows = ws.get_all_values()
                 for i, row in enumerate(all_rows, start=1):
                     if row and row[0] == sel_name:
-                        ws.update(f"A{i}:C{i}", [[save_name, save_role, save_memo]])
+                        write_row_by_header(ws, i, {"名前": save_name, "役割": save_role, "メモ": save_memo})
                         break
                 st.success("更新しました")
                 st.rerun()

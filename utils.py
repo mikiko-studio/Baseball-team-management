@@ -122,7 +122,7 @@ def load_staff():
         df = pd.DataFrame(get_spreadsheet().worksheet(STAFF_SHEET).get_all_records())
         return df
     except Exception:
-        return pd.DataFrame(columns=["名前", "役割"])
+        return pd.DataFrame(columns=["名前", "役割", "メモ"])
 
 
 def save_attendance_bulk(event_id, status_dict, haisha_dict=None, event_info="",
