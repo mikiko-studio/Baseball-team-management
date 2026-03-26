@@ -13,6 +13,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+div[data-testid="stButton"] button { text-align: left; justify-content: flex-start; }
+</style>
+""", unsafe_allow_html=True)
+
 # 直近1週間の変更ログサマリー
 try:
     _log = load_change_log()
